@@ -152,17 +152,17 @@ export default function LandingPage() {
           </button>
 
           <button
-            onClick={() => handleNavigation('/exchange')}
+            onClick={() => handleNavigation('/dashboard')}
             className="gothic-button w-full py-3 sm:py-4 px-4 sm:px-6 rounded-lg text-left"
           >
             <div className="flex items-center gap-2 sm:gap-3">
               <span className="text-xl sm:text-2xl">💎</span>
               <div className="flex-1">
                 <h3 className="text-sm sm:text-base md:text-lg font-bold text-soul-glow mb-0.5 sm:mb-1">
-                  靈魂兌換所
+                  心魂監控台
                 </h3>
                 <p className="text-xs sm:text-sm text-soul-glow/70">
-                  淨化污穢，兌換專屬榮光
+                  監控靈魂狀態，掌握迷霧動向
                 </p>
               </div>
             </div>

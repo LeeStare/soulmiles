@@ -673,6 +673,11 @@
     stroke: currentColor;
   }
 
+  .route-footer__icon--active {
+    color: #fbbf24;
+    transform: translateY(-2px);
+  }
+
   .route-footer__label {
     font-size: 0.7rem;
     text-align: center;
