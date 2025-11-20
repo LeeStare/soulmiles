@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import Header from '../../components/Header';
 
 /**
@@ -11,6 +12,7 @@ import Header from '../../components/Header';
  */
 export default function DashboardPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [userLocation, setUserLocation] = useState(null);
   const [weatherData, setWeatherData] = useState(null);
   const [transportData, setTransportData] = useState(null);
@@ -144,12 +146,30 @@ export default function DashboardPage() {
                   {bountyAmount.toLocaleString()} <span className="text-lg">SoulCoins</span>
                 </p>
               </div>
-              <button
-                onClick={handleLoginClick}
-                className="w-full py-2 px-4 rounded-lg border border-treasure-gold/50 bg-[#2b1a10]/70 text-treasure-gold text-sm font-semibold hover:bg-treasure-gold/20 transition-colors"
-              >
-                登入以領取懸賞
-              </button>
+              {session ? (
+                // 登入後顯示用戶頭像
+                <div className="flex items-center justify-center">
+                  {session.user?.image ? (
+                    <img
+                      src={session.user.image}
+                      alt={session.user.name || 'User'}
+                      className="w-16 h-16 rounded-full object-cover border-2 border-treasure-gold/50 shadow-lg"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-full bg-treasure-gold/20 border-2 border-treasure-gold/50 flex items-center justify-center">
+                      <span className="text-2xl text-treasure-gold">👤</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                // 未登入時顯示登入按鈕
+                <button
+                  onClick={handleLoginClick}
+                  className="w-full py-2 px-4 rounded-lg border border-treasure-gold/50 bg-[#2b1a10]/70 text-treasure-gold text-sm font-semibold hover:bg-treasure-gold/20 transition-colors"
+                >
+                  登入以領取懸賞
+                </button>
+              )}
               
               {/* 分頁指示器（三個小圓點） */}
               <div className="flex justify-center gap-2 mt-4">

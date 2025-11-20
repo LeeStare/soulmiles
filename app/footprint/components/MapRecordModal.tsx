@@ -66,6 +66,49 @@ export default function MapRecordModal({ mode, onClose, onInputClick, onEditClic
     }
   };
 
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // 驗證文件類型
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    if (!validTypes.includes(file.type)) {
+      alert('只能上傳 JPG 或 PNG 格式的圖片');
+      return;
+    }
+
+    // 驗證文件大小（限制為 5MB）
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      alert('圖片大小不能超過 5MB');
+      return;
+    }
+
+    // 將文件轉換為 Base64
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64String = e.target?.result as string;
+      if (base64String) {
+        setPictures([...pictures, base64String]);
+      }
+    };
+    reader.onerror = () => {
+      alert('讀取文件失敗，請稍後再試');
+    };
+    reader.readAsDataURL(file);
+
+    // 重置 input，以便可以再次選擇同一個文件
+    event.target.value = '';
+  };
+
+  const handleAddButtonClick = () => {
+    // 觸發隱藏的文件選擇器
+    const fileInput = document.getElementById('photo-file-input') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.click();
+    }
+  };
+
   const handleRemovePicture = (index: number) => {
     setPictures(pictures.filter((_, i) => i !== index));
   };
@@ -176,18 +219,38 @@ export default function MapRecordModal({ mode, onClose, onInputClick, onEditClic
               className="flex-1 rounded-lg bg-[#2b1a10]/70 border border-[#fbbf24]/30 px-3 py-2 text-[#f7e7c7] focus:border-[#fbbf24] focus:outline-none"
               placeholder="輸入照片 URL 或 Base64"
             />
+            {/* 隱藏的文件選擇器 */}
+            <input
+              id="photo-file-input"
+              type="file"
+              accept="image/jpeg,image/jpg,image/png"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
             <button
-              onClick={handleAddPicture}
+              onClick={handleAddButtonClick}
               className="px-4 py-2 rounded-lg bg-[#6b46c1] text-[#f7e7c7] hover:bg-[#5b21b6] transition-colors"
             >
               添加
             </button>
+            {/* 保留手動輸入的添加功能 */}
+            {currentPicture.trim() && (
+              <button
+                onClick={handleAddPicture}
+                className="px-4 py-2 rounded-lg bg-[#8b5cf6] text-[#f7e7c7] hover:bg-[#7c3aed] transition-colors"
+                title="添加 URL 或 Base64"
+              >
+                添加文字
+              </button>
+            )}
           </div>
           {pictures.length > 0 && (
             <div className="mt-2 space-y-2">
               {pictures.map((pic, index) => (
                 <div key={index} className="flex items-center gap-2 p-2 bg-[#2b1a10]/50 rounded">
-                  <span className="text-xs text-[#f7e7c7]/70 flex-1 truncate">{pic.substring(0, 50)}...</span>
+                  <span className="text-xs text-[#f7e7c7]/70 flex-1 truncate">
+                    {pic.startsWith('data:image') ? '圖片文件' : pic.substring(0, 50)}...
+                  </span>
                   <button
                     onClick={() => handleRemovePicture(index)}
                     className="text-[#fbbf24] hover:text-red-400 text-sm"
