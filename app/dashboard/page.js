@@ -413,7 +413,7 @@ export default function DashboardPage() {
             <span className="route-footer__label">藏寶圖尋蹤</span>
           </button>
           <button
-            onClick={() => router.push('/footprints')}
+            onClick={() => router.push('/footprint')}
             className="route-footer__icon"
             aria-label="足跡之光"
           >

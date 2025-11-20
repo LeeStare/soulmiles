@@ -683,5 +683,22 @@
     text-align: center;
     white-space: nowrap;
   }
+
+  /* 翻書動畫 */
+  .flip-animation {
+    animation: flipPage 0.3s ease-in-out;
+  }
+
+  @keyframes flipPage {
+    0% {
+      transform: perspective(1000px) rotateY(0deg);
+    }
+    50% {
+      transform: perspective(1000px) rotateY(-90deg);
+    }
+    100% {
+      transform: perspective(1000px) rotateY(0deg);
+    }
+  }
 }
 

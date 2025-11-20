@@ -135,7 +135,7 @@ export default function LandingPage() {
           </button>
 
           <button
-            onClick={() => handleNavigation('/footprints')}
+            onClick={() => handleNavigation('/footprint')}
             className="gothic-button w-full py-3 sm:py-4 px-4 sm:px-6 rounded-lg text-left"
           >
             <div className="flex items-center gap-2 sm:gap-3">
