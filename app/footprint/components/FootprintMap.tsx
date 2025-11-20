@@ -8,7 +8,7 @@ import 'leaflet/dist/leaflet.css';
 const MapContainer = dynamic(
   () => import('react-leaflet').then((mod) => mod.MapContainer),
   { ssr: false }
-);
+) as React.ComponentType<any>;
 
 const TileLayer = dynamic(
   () => import('react-leaflet').then((mod) => mod.TileLayer),
