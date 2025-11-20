@@ -57,8 +57,8 @@ export const authOptions = {
   // 確保在開發環境中輸出配置信息（僅用於調試）
   ...(process.env.NODE_ENV === 'development' && {
     logger: {
-      error(code, metadata) {
-        console.error('[NextAuth Error]', code, metadata);
+      error(error) {
+        console.error('[NextAuth Error]', error);
       },
       warn(code) {
         console.warn('[NextAuth Warn]', code);
