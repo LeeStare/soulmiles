@@ -45,7 +45,7 @@ export default function MyMapTabClient({ records }: MyMapTabClientProps) {
   };
 
   return (
-    <div className="flex flex-col gap-4 mb-4">
+    <div className="flex flex-col gap-4 mb-16 sm:mb-20">
       {/* 地圖區域 */}
       <div className="w-full h-[400px] sm:h-[500px] relative rounded-lg overflow-hidden border border-[#f0d9b5]/30">
         <FootprintMap />
