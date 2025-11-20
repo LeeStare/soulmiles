@@ -13,33 +13,38 @@ import { prisma } from './prisma';
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
-// 驗證憑證是否存在
-if (!googleClientId || !googleClientSecret) {
-  throw new Error('Google OAuth 憑證未配置。請檢查 GOOGLE_CLIENT_ID 和 GOOGLE_CLIENT_SECRET 環境變數。');
-}
-
-// 在開發環境中輸出配置信息（僅用於調試，不輸出完整 Secret）
-if (process.env.NODE_ENV === 'development') {
-  console.log('[NextAuth Config] Google Client ID:', googleClientId.substring(0, 20) + '...');
-  console.log('[NextAuth Config] Google Client Secret:', googleClientSecret ? '已設置' : '未設置');
-}
-
 // 初始化 PrismaAdapter
 const adapter = PrismaAdapter(prisma) as Adapter;
 
-// 初始化 Google Provider
-// 確保使用正確的配置格式
-const googleProvider = Google({
-  clientId: googleClientId,
-  clientSecret: googleClientSecret,
-  // 移除可能導致問題的 authorization 參數，使用默認配置
-});
+// 初始化 providers 陣列
+const providers: any[] = [];
 
-// 驗證 providers 不為空
-const providers = [googleProvider];
-if (providers.length === 0) {
-  throw new Error('至少需要配置一個認證提供者');
+// 只有在憑證存在時才添加 Google Provider
+if (googleClientId && googleClientSecret) {
+  // 在開發環境中輸出配置信息（僅用於調試，不輸出完整 Secret）
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[NextAuth Config] Google Client ID:', googleClientId.substring(0, 20) + '...');
+    console.log('[NextAuth Config] Google Client Secret:', googleClientSecret ? '已設置' : '未設置');
+  }
+
+  // 初始化 Google Provider
+  // 確保使用正確的配置格式
+  const googleProvider = Google({
+    clientId: googleClientId,
+    clientSecret: googleClientSecret,
+    // 移除可能導致問題的 authorization 參數，使用默認配置
+  });
+  
+  providers.push(googleProvider);
+} else {
+  // 在開發環境中輸出警告
+  if (process.env.NODE_ENV === 'development') {
+    console.warn('[NextAuth Config] Google OAuth 憑證未配置。請檢查 GOOGLE_CLIENT_ID 和 GOOGLE_CLIENT_SECRET 環境變數。');
+  }
 }
+
+// 驗證 providers 不為空（只有在需要認證功能時才驗證）
+// 注意：如果沒有 providers，NextAuth 仍然可以初始化，但無法進行登入
 
 export const authOptions = {
   adapter,
@@ -111,12 +116,15 @@ export const authOptions = {
     },
   },
   callbacks: {
-    async session({ session, user }) {
-      // 從資料庫中讀取用戶的自定義欄位並添加到 session
-      if (user?.id) {
+    async session({ session, user, token }) {
+      // NextAuth v5 使用 adapter 時，session callback 可能同時有 user 和 token
+      // 優先使用 user.id，如果沒有則使用 token.sub
+      const userId = user?.id || token?.sub || token?.userId;
+      
+      if (userId) {
         try {
           const dbUser = await prisma.user.findUnique({
-            where: { id: user.id },
+            where: { id: userId as string },
             select: {
               coin: true,
               IsActive: true,
@@ -128,7 +136,7 @@ export const authOptions = {
 
           if (dbUser && session.user) {
             // 擴展 session.user 以包含自定義欄位
-            (session.user as any).id = user.id;
+            (session.user as any).id = userId;
             (session.user as any).coin = dbUser.coin;
             (session.user as any).IsActive = dbUser.IsActive;
             (session.user as any).Google_Oath = dbUser.Google_Oath;
@@ -140,6 +148,13 @@ export const authOptions = {
         }
       }
       return session;
+    },
+    async jwt({ token, user }) {
+      // 在 JWT token 中保存 user id
+      if (user) {
+        token.userId = user.id;
+      }
+      return token;
     },
   },
   secret: process.env.AUTH_SECRET || 'agAEIhrYpa2F0QneVhZq/ugGncS6lcBtNcBfezU3CmQ=',

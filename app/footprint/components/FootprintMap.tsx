@@ -56,6 +56,8 @@ function MapResizeHandler() {
 interface Footprint {
   id: string;
   coordinate: string | null;
+  name?: string | null;
+  description?: string | null;
 }
 
 /**
@@ -237,8 +239,11 @@ export default function FootprintMap() {
               <Marker key={footprint.id} position={coord} icon={footprintIcon}>
                 <Popup>
                   <div className="text-gray-800">
-                    <strong className="text-amber-600">⚓ 足跡點</strong>
-                    <p className="text-xs mt-1">ID: {footprint.id}</p>
+                    <strong className="text-amber-600">⚓ {footprint.name || '足跡點'}</strong>
+                    {footprint.description && (
+                      <p className="text-xs mt-1 text-gray-600">{footprint.description}</p>
+                    )}
+                    <p className="text-xs mt-1 text-gray-400">座標: {coord[0].toFixed(4)}, {coord[1].toFixed(4)}</p>
                   </div>
                 </Popup>
               </Marker>
