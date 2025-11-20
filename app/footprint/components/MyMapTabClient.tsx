@@ -57,6 +57,12 @@ export default function MyMapTabClient({ records }: MyMapTabClientProps) {
     setShowMapRecordModal(true);
   };
 
+  const handleRecordSelect = (record: MapRecord) => {
+    setSelectedRecord(record);
+    setMapRecordMode('edit');
+    setShowMapRecordModal(true);
+  };
+
   const handleSuccess = () => {
     // 刷新數據：重新獲取頁面數據
     router.refresh();
@@ -94,6 +100,7 @@ export default function MyMapTabClient({ records }: MyMapTabClientProps) {
         <MapRecordModal
           mode={mapRecordMode}
           record={selectedRecord}
+          records={records}
           onClose={() => {
             setShowMapRecordModal(false);
             setMapRecordMode(null);
@@ -102,6 +109,7 @@ export default function MyMapTabClient({ records }: MyMapTabClientProps) {
           onInputClick={handleInputClick}
           onEditClick={handleEditClick}
           onSuccess={handleSuccess}
+          onRecordSelect={handleRecordSelect}
         />
       )}
     </div>

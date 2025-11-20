@@ -200,3 +200,64 @@ export async function PUT(request: Request) {
   }
 }
 
+/**
+ * 刪除 MapRecord（包含相關的 MapRecordPicture）
+ */
+export async function DELETE(request: Request) {
+  try {
+    // 獲取當前用戶的 session
+    const session = await auth();
+    
+    // 檢查用戶是否已登入
+    if (!session || !session.user || !(session.user as any).id) {
+      return NextResponse.json(
+        { error: '請先登入' },
+        { status: 401 }
+      );
+    }
+
+    const userId = (session.user as any).id;
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json(
+        { error: '記錄 ID 為必填項' },
+        { status: 400 }
+      );
+    }
+
+    // 檢查記錄是否存在且屬於當前用戶
+    const existingRecord = await prisma.mapRecord.findUnique({
+      where: { id },
+    });
+
+    if (!existingRecord) {
+      return NextResponse.json(
+        { error: '記錄不存在' },
+        { status: 404 }
+      );
+    }
+
+    if (existingRecord.user_id !== userId) {
+      return NextResponse.json(
+        { error: '無權限刪除此記錄' },
+        { status: 403 }
+      );
+    }
+
+    // 刪除記錄（相關的 MapRecordPicture 會因為 onDelete: Cascade 自動刪除）
+    await prisma.mapRecord.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('刪除 MapRecord 失敗:', error);
+    return NextResponse.json(
+      { error: '刪除記錄失敗' },
+      { status: 500 }
+    );
+  }
+}
+

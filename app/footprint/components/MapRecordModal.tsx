@@ -19,24 +19,28 @@ interface MapRecordPicture {
 interface MapRecordModalProps {
   mode: 'input' | 'edit' | null;
   record?: MapRecord | null;
+  records?: MapRecord[];
   onClose: () => void;
   onInputClick: () => void;
   onEditClick: () => void;
   onSuccess?: () => void;
+  onRecordSelect?: (record: MapRecord) => void;
 }
 
 /**
  * MapRecordModal - 足跡記錄模態視窗
  * 包含選擇「輸入」或「編輯」的初始狀態，以及實際的輸入/編輯表單
  */
-export default function MapRecordModal({ mode, record, onClose, onInputClick, onEditClick, onSuccess }: MapRecordModalProps) {
+export default function MapRecordModal({ mode, record, records = [], onClose, onInputClick, onEditClick, onSuccess, onRecordSelect }: MapRecordModalProps) {
   const [showModeSelection, setShowModeSelection] = useState(mode === null);
   const [currentMode, setCurrentMode] = useState<'input' | 'edit' | null>(mode);
+  const [showEditList, setShowEditList] = useState(mode === 'edit' && !record);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [pictures, setPictures] = useState<string[]>([]);
   const [currentPicture, setCurrentPicture] = useState('');
   const [loading, setLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // 當進入編輯模式且有記錄時，載入現有數據
   useEffect(() => {
@@ -44,14 +48,93 @@ export default function MapRecordModal({ mode, record, onClose, onInputClick, on
       setName(record.name || '');
       setDescription(record.description || '');
       setPictures(record.pictures.map(pic => pic.picture || '').filter(Boolean));
+      setShowEditList(false); // 有記錄時不顯示列表
+    } else if (currentMode === 'edit' && !record) {
+      setShowEditList(true); // 沒有記錄時顯示列表
     } else if (currentMode === 'input') {
       // 重置表單
       setName('');
       setDescription('');
       setPictures([]);
       setCurrentPicture('');
+      setShowEditList(false);
     }
   }, [currentMode, record]);
+
+  // 如果是編輯模式且沒有選中記錄，顯示記錄列表
+  if (showEditList && currentMode === 'edit') {
+    return (
+      <Modal
+        title="編輯足跡記錄"
+        subtitle="選擇要編輯的記錄"
+        onClose={onClose}
+      >
+        <div className="space-y-2 max-h-[400px] overflow-y-auto">
+          {records.length === 0 ? (
+            <p className="text-center text-[#f7e7c7]/70 py-8">尚無記錄</p>
+          ) : (
+            records.map((rec) => (
+              <div
+                key={rec.id}
+                className="flex items-center justify-between p-3 rounded-lg border border-[#fbbf24]/30 bg-[#2b1a10]/70 hover:border-[#fbbf24] transition-colors"
+              >
+                <span className="text-sm font-semibold text-[#f7e7c7] flex-1 truncate">
+                  {rec.name || '未命名地點'}
+                </span>
+                <div className="flex items-center gap-2 ml-3">
+                  <button
+                    onClick={() => {
+                      if (onRecordSelect) {
+                        onRecordSelect(rec);
+                      }
+                      setShowEditList(false);
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-[#fbbf24] text-[#1b0e07] hover:bg-[#f59e0b] transition-colors text-sm font-semibold"
+                  >
+                    編輯
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!confirm(`確定要刪除「${rec.name || '未命名地點'}」嗎？`)) {
+                        return;
+                      }
+                      setDeletingId(rec.id);
+                      try {
+                        const response = await fetch(`/api/footprint/map-records?id=${rec.id}`, {
+                          method: 'DELETE',
+                        });
+                        if (response.ok) {
+                          if (onSuccess) {
+                            onSuccess();
+                          }
+                          // 如果刪除的是當前選中的記錄，關閉模態視窗
+                          if (record && record.id === rec.id) {
+                            onClose();
+                          }
+                        } else {
+                          const error = await response.json();
+                          alert(`刪除失敗: ${error.error || '未知錯誤'}`);
+                        }
+                      } catch (error) {
+                        console.error('刪除記錄失敗:', error);
+                        alert('刪除失敗，請稍後再試');
+                      } finally {
+                        setDeletingId(null);
+                      }
+                    }}
+                    disabled={deletingId === rec.id}
+                    className="px-3 py-1.5 rounded-lg bg-red-600/80 text-white hover:bg-red-700 transition-colors text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {deletingId === rec.id ? '刪除中...' : '刪除'}
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </Modal>
+    );
+  }
 
   // 如果是初始狀態，顯示模式選擇
   if (showModeSelection || currentMode === null) {
@@ -77,6 +160,7 @@ export default function MapRecordModal({ mode, record, onClose, onInputClick, on
             onClick={() => {
               setShowModeSelection(false);
               setCurrentMode('edit');
+              setShowEditList(true);
               onEditClick();
             }}
             className="w-full rounded-xl border border-[#fbbf24]/30 bg-[#2b1a10]/70 px-4 py-3 text-left hover:border-[#fbbf24] transition-colors"
