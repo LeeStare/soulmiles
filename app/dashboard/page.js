@@ -63,17 +63,17 @@ export default function DashboardPage() {
   // 獲取交通和推薦數據
   useEffect(() => {
     if (userLocation) {
-      // 獲取交通資訊
+      // 獲取交通資訊（火車站、公車站、YouBike 租借點）
       Promise.all([
-        fetch(`/api/places?lat=${userLocation.lat}&lon=${userLocation.lon}&type=bus_station&radius=2000`).then((res) => res.json()),
         fetch(`/api/places?lat=${userLocation.lat}&lon=${userLocation.lon}&type=train_station&radius=2000`).then((res) => res.json()),
-        fetch(`/api/places?lat=${userLocation.lat}&lon=${userLocation.lon}&type=bicycle_store&radius=2000`).then((res) => res.json()),
+        fetch(`/api/places?lat=${userLocation.lat}&lon=${userLocation.lon}&type=bus_station&radius=2000`).then((res) => res.json()),
+        fetch(`/api/places?lat=${userLocation.lat}&lon=${userLocation.lon}&type=bicycle_rental&radius=2000`).then((res) => res.json()),
       ])
-        .then(([busData, trainData, bikeData]) => {
+        .then(([trainData, busData, bikeData]) => {
           setTransportData({
-            bus: busData.places?.slice(0, 3) || [],
-            train: trainData.places?.slice(0, 3) || [],
-            bike: bikeData.places?.slice(0, 3) || [],
+            train: trainData.places?.[0] || null, // 只取最近的一個
+            bus: busData.places?.[0] || null, // 只取最近的一個
+            youbike: bikeData.places?.[0] || null, // 只取最近的一個
           });
         })
         .catch((err) => console.error('獲取交通資訊失敗:', err));
@@ -357,24 +357,76 @@ export default function DashboardPage() {
               <span className="text-xl">🚂</span>
               <h3 className="text-sm font-semibold text-soul-glow">最近交通</h3>
             </div>
-            {(() => {
-              const transportTypes = [
-                { icon: '🚘', name: '公車' },
-                { icon: '🚂', name: '火車' },
-                { icon: '🚲', name: '腳踏車' },
-                { icon: '👣', name: '步行' }
-              ];
-              const randomTransport = transportTypes[Math.floor(Math.random() * transportTypes.length)];
-              const randomDistance = Math.floor(Math.random() * (5000 - 100 + 1)) + 100;
-              return (
-                <div className="space-y-2">
-                  <p className="text-xs text-soul-glow/80 text-left">距離 {randomDistance} 公尺</p>
-                  <div className="flex items-center justify-center">
-                    <span className="text-4xl">{randomTransport.icon}</span>
+            {transportData ? (
+              <div className="space-y-2">
+                {/* 最近火車站 */}
+                {transportData.train ? (
+                  <div className="flex items-center justify-between p-2 rounded bg-soul-glow/5 border border-soul-glow/20">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">🚂</span>
+                      <div className="text-xs">
+                        <p className="text-soul-glow/90 font-medium truncate max-w-[120px]">{transportData.train.name || '火車站'}</p>
+                        <p className="text-soul-glow/60">{transportData.train.distance ? `${transportData.train.distance} 公尺` : '距離未知'}</p>
+                      </div>
+                    </div>
                   </div>
+                ) : (
+                  <div className="flex items-center justify-between p-2 rounded bg-soul-glow/5 border border-soul-glow/10">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">🚂</span>
+                      <p className="text-xs text-soul-glow/50">查無資料</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* 最近公車站 */}
+                {transportData.bus ? (
+                  <div className="flex items-center justify-between p-2 rounded bg-soul-glow/5 border border-soul-glow/20">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">🚌</span>
+                      <div className="text-xs">
+                        <p className="text-soul-glow/90 font-medium truncate max-w-[120px]">{transportData.bus.name || '公車站'}</p>
+                        <p className="text-soul-glow/60">{transportData.bus.distance ? `${transportData.bus.distance} 公尺` : '距離未知'}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between p-2 rounded bg-soul-glow/5 border border-soul-glow/10">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">🚌</span>
+                      <p className="text-xs text-soul-glow/50">查無資料</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* 最近 YouBike 租借點 */}
+                {transportData.youbike ? (
+                  <div className="flex items-center justify-between p-2 rounded bg-soul-glow/5 border border-soul-glow/20">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">🚲</span>
+                      <div className="text-xs">
+                        <p className="text-soul-glow/90 font-medium truncate max-w-[120px]">{transportData.youbike.name || 'YouBike 站'}</p>
+                        <p className="text-soul-glow/60">{transportData.youbike.distance ? `${transportData.youbike.distance} 公尺` : '距離未知'}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between p-2 rounded bg-soul-glow/5 border border-soul-glow/10">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">🚲</span>
+                      <p className="text-xs text-soul-glow/50">查無資料</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 p-2">
+                  <div className="w-2 h-2 rounded-full bg-soul-glow/40 animate-pulse" />
+                  <p className="text-xs text-soul-glow/60">載入中...</p>
                 </div>
-              );
-            })()}
+              </div>
+            )}
           </div>
 
           {/* 最近景區人潮卡片 */}

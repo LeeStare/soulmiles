@@ -3,8 +3,11 @@ import { NextResponse } from 'next/server';
 /**
  * 獲取附近地點數據 API Route
  * - 餐廳 (restaurant): 使用 OpenStreetMap Overpass API
+ * - 住宿 (lodging): 使用 OpenStreetMap Overpass API
+ * - 火車站 (train_station): 使用 OpenStreetMap Overpass API
+ * - 公車站 (bus_station): 使用 OpenStreetMap Overpass API
+ * - YouBike 租借站 (bicycle_rental): 使用 OpenStreetMap Overpass API
  * - 景區 (tourist_attraction): 使用 Foursquare Places API
- * - 其他類型: 使用 Google Maps Platform Places API
  */
 
 // 計算兩點之間的距離（Haversine 公式，返回公尺）
@@ -404,6 +407,179 @@ async function checkAvailabilityWithTravelpayouts(lodging, checkInDate, checkOut
   }
 }
 
+// 使用 OSM Overpass API 查詢火車站
+async function fetchTrainStationsFromOSM(lat, lon, radius) {
+  try {
+    const overpassQuery = `
+[out:json][timeout:25];
+(
+  node["railway"="station"](around:${radius},${lat},${lon});
+  way["railway"="station"](around:${radius},${lat},${lon});
+  relation["railway"="station"](around:${radius},${lat},${lon});
+  node["public_transport"="station"]["railway"="rail"](around:${radius},${lat},${lon});
+  way["public_transport"="station"]["railway"="rail"](around:${radius},${lat},${lon});
+);
+out center meta;
+`;
+
+    const response = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain',
+      },
+      body: overpassQuery
+    });
+
+    if (!response.ok) {
+      throw new Error(`Overpass API error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const elements = data.elements || [];
+
+    const stations = [];
+
+    for (const element of elements) {
+      const coords = getCoordinates(element);
+      if (!coords || !coords.lat || !coords.lon) continue;
+
+      const distance = calculateDistance(parseFloat(lat), parseFloat(lon), coords.lat, coords.lon);
+
+      stations.push({
+        name: element.tags?.name || element.tags?.['name:zh'] || '火車站',
+        lat: coords.lat,
+        lon: coords.lon,
+        distance: Math.round(distance),
+        vicinity: element.tags?.['addr:full'] || 
+                  `${element.tags?.['addr:street'] || ''} ${element.tags?.['addr:housenumber'] || ''}`.trim() ||
+                  element.tags?.['addr:city'] || '',
+      });
+    }
+
+    stations.sort((a, b) => a.distance - b.distance);
+    return stations;
+
+  } catch (error) {
+    console.error('Error fetching train stations from OSM:', error);
+    return [];
+  }
+}
+
+// 使用 OSM Overpass API 查詢公車站
+async function fetchBusStationsFromOSM(lat, lon, radius) {
+  try {
+    const overpassQuery = `
+[out:json][timeout:25];
+(
+  node["public_transport"="platform"]["bus"="yes"](around:${radius},${lat},${lon});
+  way["public_transport"="platform"]["bus"="yes"](around:${radius},${lat},${lon});
+  node["highway"="bus_stop"](around:${radius},${lat},${lon});
+  node["amenity"="bus_station"](around:${radius},${lat},${lon});
+  way["amenity"="bus_station"](around:${radius},${lat},${lon});
+);
+out center meta;
+`;
+
+    const response = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain',
+      },
+      body: overpassQuery
+    });
+
+    if (!response.ok) {
+      throw new Error(`Overpass API error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const elements = data.elements || [];
+
+    const stations = [];
+
+    for (const element of elements) {
+      const coords = getCoordinates(element);
+      if (!coords || !coords.lat || !coords.lon) continue;
+
+      const distance = calculateDistance(parseFloat(lat), parseFloat(lon), coords.lat, coords.lon);
+
+      stations.push({
+        name: element.tags?.name || element.tags?.['name:zh'] || '公車站',
+        lat: coords.lat,
+        lon: coords.lon,
+        distance: Math.round(distance),
+        vicinity: element.tags?.['addr:full'] || 
+                  `${element.tags?.['addr:street'] || ''} ${element.tags?.['addr:housenumber'] || ''}`.trim() ||
+                  element.tags?.['addr:city'] || '',
+      });
+    }
+
+    stations.sort((a, b) => a.distance - b.distance);
+    return stations;
+
+  } catch (error) {
+    console.error('Error fetching bus stations from OSM:', error);
+    return [];
+  }
+}
+
+// 使用 OSM Overpass API 查詢 YouBike 租借站
+async function fetchYouBikeStationsFromOSM(lat, lon, radius) {
+  try {
+    const overpassQuery = `
+[out:json][timeout:25];
+(
+  node["amenity"="bicycle_rental"]["network"="YouBike"](around:${radius},${lat},${lon});
+  node["amenity"="bicycle_rental"]["operator"="YouBike"](around:${radius},${lat},${lon});
+  node["amenity"="bicycle_rental"](around:${radius},${lat},${lon});
+  way["amenity"="bicycle_rental"](around:${radius},${lat},${lon});
+);
+out center meta;
+`;
+
+    const response = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain',
+      },
+      body: overpassQuery
+    });
+
+    if (!response.ok) {
+      throw new Error(`Overpass API error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const elements = data.elements || [];
+
+    const stations = [];
+
+    for (const element of elements) {
+      const coords = getCoordinates(element);
+      if (!coords || !coords.lat || !coords.lon) continue;
+
+      const distance = calculateDistance(parseFloat(lat), parseFloat(lon), coords.lat, coords.lon);
+
+      stations.push({
+        name: element.tags?.name || element.tags?.['name:zh'] || 'YouBike 站',
+        lat: coords.lat,
+        lon: coords.lon,
+        distance: Math.round(distance),
+        vicinity: element.tags?.['addr:full'] || 
+                  `${element.tags?.['addr:street'] || ''} ${element.tags?.['addr:housenumber'] || ''}`.trim() ||
+                  element.tags?.['addr:city'] || '',
+      });
+    }
+
+    stations.sort((a, b) => a.distance - b.distance);
+    return stations;
+
+  } catch (error) {
+    console.error('Error fetching YouBike stations from OSM:', error);
+    return [];
+  }
+}
+
 // 使用 OSM Overpass API 查詢餐廳
 async function fetchRestaurantsFromOSM(lat, lon, radius) {
   try {
@@ -734,41 +910,64 @@ export async function GET(request) {
     }
   }
 
-  // 其他類型繼續使用 Google Places API
-  const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  // 如果是火車站，使用 OSM Overpass API
+  if (type === 'train_station') {
+    try {
+      const stations = await fetchTrainStationsFromOSM(lat, lon, radius);
+      const places = stations.map(station => ({
+        name: station.name,
+        distance: station.distance,
+        vicinity: station.vicinity || '',
+        lat: station.lat,
+        lon: station.lon,
+      }));
 
-  if (!GOOGLE_MAPS_API_KEY) {
-    // 如果沒有 API Key，返回空數據
-    return NextResponse.json({ places: [] });
-  }
-
-  try {
-    const placesApiUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lon}&radius=${radius}&type=${type}&key=${GOOGLE_MAPS_API_KEY}`;
-
-    const response = await fetch(placesApiUrl);
-    
-    if (!response.ok) {
-      throw new Error(`Google Places API error: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-
-    if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
-      console.error('Google Places API returned status:', data.status, data.error_message);
+      return NextResponse.json({ places });
+    } catch (error) {
+      console.error('Error fetching train stations:', error);
       return NextResponse.json({ places: [] });
     }
-
-    // 提取相關資訊
-    const places = (data.results || []).map((place) => ({
-      name: place.name,
-      rating: place.rating,
-      vicinity: place.vicinity, // 地址
-    }));
-
-    return NextResponse.json({ places });
-  } catch (error) {
-    console.error('Error fetching places data:', error);
-    return NextResponse.json({ places: [] });
   }
+
+  // 如果是公車站，使用 OSM Overpass API
+  if (type === 'bus_station') {
+    try {
+      const stations = await fetchBusStationsFromOSM(lat, lon, radius);
+      const places = stations.map(station => ({
+        name: station.name,
+        distance: station.distance,
+        vicinity: station.vicinity || '',
+        lat: station.lat,
+        lon: station.lon,
+      }));
+
+      return NextResponse.json({ places });
+    } catch (error) {
+      console.error('Error fetching bus stations:', error);
+      return NextResponse.json({ places: [] });
+    }
+  }
+
+  // 如果是 YouBike 租借站，使用 OSM Overpass API
+  if (type === 'bicycle_rental') {
+    try {
+      const stations = await fetchYouBikeStationsFromOSM(lat, lon, radius);
+      const places = stations.map(station => ({
+        name: station.name,
+        distance: station.distance,
+        vicinity: station.vicinity || '',
+        lat: station.lat,
+        lon: station.lon,
+      }));
+
+      return NextResponse.json({ places });
+    } catch (error) {
+      console.error('Error fetching YouBike stations:', error);
+      return NextResponse.json({ places: [] });
+    }
+  }
+
+  // 其他類型返回空數據（不再使用 Google Places API）
+  return NextResponse.json({ places: [] });
 }
 
