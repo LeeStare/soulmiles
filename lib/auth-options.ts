@@ -215,6 +215,6 @@ export const authOptions = {
       return session;
     },
   },
-  secret: process.env.AUTH_SECRET || 'agAEIhrYpa2F0QneVhZq/ugGncS6lcBtNcBfezU3CmQ=',
+  secret: process.env.AUTH_SECRET,
 };
 

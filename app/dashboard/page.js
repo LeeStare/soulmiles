@@ -17,6 +17,7 @@ export default function DashboardPage() {
   const [weatherData, setWeatherData] = useState(null);
   const [transportData, setTransportData] = useState(null);
   const [recommendations, setRecommendations] = useState(null);
+  const [crowdData, setCrowdData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [bountyAmount] = useState(Math.floor(Math.random() * (1000000 - 1000 + 1)) + 1000);
   const [bountyIndex, setBountyIndex] = useState(0); // 懸賞單分頁索引
@@ -89,6 +90,34 @@ export default function DashboardPage() {
           });
         })
         .catch((err) => console.error('獲取推薦失敗:', err));
+
+      // 獲取景區人潮資料
+      fetch(`/api/places?lat=${userLocation.lat}&lon=${userLocation.lon}&type=tourist_attraction&radius=5000`)
+        .then((res) => {
+          if (!res.ok) {
+            console.error('景區人潮 API 回應錯誤:', res.status, res.statusText);
+            return { places: [] };
+          }
+          return res.json();
+        })
+        .then((data) => {
+          console.log('景區人潮 API 回應:', data);
+          // 取最近的景區（API 已經排序）
+          const nearestAttraction = data.places?.[0] || null;
+          if (nearestAttraction) {
+            console.log('找到最近景區:', nearestAttraction);
+            setCrowdData(nearestAttraction);
+          } else {
+            console.warn('沒有找到景區資料');
+            // 即使沒有資料也設置為 false 以停止載入狀態
+            setCrowdData(false);
+          }
+        })
+        .catch((err) => {
+          console.error('獲取景區人潮失敗:', err);
+          // 設置為 false 以停止載入狀態
+          setCrowdData(false);
+        });
     }
   }, [userLocation]);
 
@@ -355,17 +384,75 @@ export default function DashboardPage() {
               <h3 className="text-sm font-semibold text-soul-glow">最近景區人潮</h3>
             </div>
             <p className="text-xs text-soul-glow/60 mb-2">敵軍標示</p>
-            <div className="flex items-center gap-2">
-              <div className="flex gap-1">
-                {[1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className="w-2 h-2 rounded-full bg-treasure-gold/60"
-                  />
-                ))}
+            {crowdData === null ? (
+              <div className="flex items-center gap-2">
+                <div className="flex gap-1">
+                  {[1, 2, 3].map((i) => (
+                    <div
+                      key={i}
+                      className="w-2 h-2 rounded-full bg-soul-glow/40"
+                    />
+                  ))}
+                </div>
+                <span className="text-xs text-soul-glow/60">載入中...</span>
               </div>
-              <span className="text-xs text-soul-glow/80">中度擁擠</span>
-            </div>
+            ) : crowdData && typeof crowdData === 'object' ? (
+              <div className="space-y-1">
+                <div className="text-xs text-soul-glow/80 truncate mb-2">
+                  {crowdData.name}
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1">
+                    {crowdData.crowdLevel !== null && crowdData.crowdLevel !== undefined ? (
+                      // 根據人潮等級顯示不同數量和顏色的圓點（0-4 級）
+                      [...Array(5)].map((_, i) => (
+                        <div
+                          key={i}
+                          className={`w-2 h-2 rounded-full ${
+                            i <= crowdData.crowdLevel
+                              ? crowdData.crowdLevel <= 1
+                                ? 'bg-soul-glow/80'
+                                : crowdData.crowdLevel <= 2
+                                ? 'bg-treasure-gold/80'
+                                : crowdData.crowdLevel <= 3
+                                ? 'bg-orange-500/80'
+                                : 'bg-red-500/80'
+                              : 'bg-soul-glow/20'
+                          }`}
+                        />
+                      ))
+                    ) : (
+                      // 無法取得時顯示預設圓點
+                      <div className="flex gap-1">
+                        <div className="w-2 h-2 rounded-full bg-soul-glow/40" />
+                        <div className="w-2 h-2 rounded-full bg-soul-glow/40" />
+                        <div className="w-2 h-2 rounded-full bg-soul-glow/40" />
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-xs text-soul-glow/80">
+                    {crowdData.crowdLevelText || '無法取得'}
+                  </span>
+                </div>
+                {crowdData.distance && (
+                  <div className="text-xs text-soul-glow/60">
+                    距離 {crowdData.distance} 公尺
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <div className="flex gap-1">
+                  {[1, 2, 3].map((i) => (
+                    <div
+                      key={i}
+                      className="w-2 h-2 rounded-full bg-soul-glow/40"
+                    />
+                  ))}
+                </div>
+                <span className="text-xs text-soul-glow/60">取得失敗</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -377,25 +464,50 @@ export default function DashboardPage() {
               <span className="text-xl">🏨</span>
               <h3 className="text-sm font-semibold text-soul-glow">最近住宿</h3>
             </div>
-            {(() => {
-              const lodgingNames = ['幽靈船倉', '迷霧客棧', '暗影旅館', '靈魂驛站', '古堡客房', '月影居所'];
-              const randomName = lodgingNames[Math.floor(Math.random() * lodgingNames.length)];
-              const randomDistance = Math.floor(Math.random() * (3000 - 100 + 1)) + 100;
-              return (
-                <>
-                  <p className="text-xs text-soul-glow/60 mb-1">{randomName}</p>
-                  <p className="text-xs text-soul-glow/80 mb-2">距離 {randomDistance} 公尺</p>
-                </>
-              );
-            })()}
-            {recommendations?.lodging && recommendations.lodging.length > 0 && (
-              <div className="space-y-1 text-xs">
-                {recommendations.lodging.slice(0, 3).map((place, index) => (
-                  <div key={index} className="text-soul-glow/80 truncate">
-                    {place.name}
-                  </div>
-                ))}
+            {recommendations?.lodging && recommendations.lodging.length > 0 ? (
+              <div className="space-y-2 text-xs">
+                {recommendations.lodging.slice(0, 3).map((place, index) => {
+                  // 提取距離資訊
+                  const distance = place.distance;
+                  
+                  // 判斷空房狀態顯示
+                  let availabilityText = '無法取得剩餘空房';
+                  let availabilityColor = 'text-soul-glow/50';
+                  
+                  if (place.hasRooms === true) {
+                    if (place.availabilitySource === 'travelpayouts') {
+                      availabilityText = '有剩餘空房';
+                      availabilityColor = 'text-soul-glow/80';
+                    } else {
+                      availabilityText = '可能有空房';
+                      availabilityColor = 'text-soul-glow/60';
+                    }
+                  } else if (place.hasRooms === false) {
+                    availabilityText = '無剩餘空房';
+                    availabilityColor = 'text-soul-glow/50';
+                  }
+                  
+                  return (
+                    <div key={index} className="space-y-1">
+                      <div className="text-soul-glow/80 truncate font-medium">
+                        {place.name}
+                      </div>
+                      <div className="space-y-0.5">
+                        {distance && (
+                          <div className="text-soul-glow/60">
+                            距離 {distance} 公尺
+                          </div>
+                        )}
+                        <div className={availabilityColor}>
+                          剩餘空房: {availabilityText}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
+            ) : (
+              <p className="text-xs text-soul-glow/60">載入中...</p>
             )}
           </div>
 
@@ -405,25 +517,29 @@ export default function DashboardPage() {
               <span className="text-xl">🍴</span>
               <h3 className="text-sm font-semibold text-soul-glow">最近餐廳</h3>
             </div>
-            {(() => {
-              const restaurantNames = ['靈魂饗宴', '暗黑廚房', '迷霧食堂', '古堡餐廳', '月影酒館', '幽靈廚房'];
-              const randomName = restaurantNames[Math.floor(Math.random() * restaurantNames.length)];
-              const randomDistance = Math.floor(Math.random() * (3000 - 100 + 1)) + 100;
-              return (
-                <>
-                  <p className="text-xs text-soul-glow/60 mb-1">{randomName}</p>
-                  <p className="text-xs text-soul-glow/80 mb-2">距離 {randomDistance} 公尺</p>
-                </>
-              );
-            })()}
-            {recommendations?.restaurant && recommendations.restaurant.length > 0 && (
+            {recommendations?.restaurant && recommendations.restaurant.length > 0 ? (
               <div className="space-y-1 text-xs">
-                {recommendations.restaurant.slice(0, 3).map((place, index) => (
-                  <div key={index} className="text-soul-glow/80 truncate">
-                    {place.name}
-                  </div>
-                ))}
+                {recommendations.restaurant.slice(0, 3).map((place, index) => {
+                  // 提取距離資訊（優先使用 distance，否則從 vicinity 解析）
+                  let distance = place.distance;
+                  if (!distance && place.vicinity) {
+                    const distanceMatch = place.vicinity.match(/(\d+)m/);
+                    if (distanceMatch) {
+                      distance = parseInt(distanceMatch[1]);
+                    }
+                  }
+                  return (
+                    <div key={index} className="text-soul-glow/80">
+                      <span className="truncate">{place.name}</span>
+                      {distance && (
+                        <span className="text-soul-glow/60 ml-2"> {distance} 公尺</span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
+            ) : (
+              <p className="text-xs text-soul-glow/60">載入中...</p>
             )}
           </div>
         </div>
