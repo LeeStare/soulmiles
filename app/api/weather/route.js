@@ -1,12 +1,101 @@
 import { NextResponse } from 'next/server';
+import { prisma } from '../../../lib/prisma';
+import { booleanPointInPolygon, point } from '@turf/turf';
 
 /**
- * 根據經緯度判斷台灣縣市名稱
+ * 根據經緯度判斷台灣縣市名稱（使用資料庫中的 twgeojson 資料）
+ * @param {number} lat - 緯度
+ * @param {number} lon - 經度
+ * @returns {Promise<string>} 縣市名稱
+ */
+async function getLocationNameByCoordinates(lat, lon) {
+  const latNum = parseFloat(lat);
+  const lonNum = parseFloat(lon);
+
+  // 建立點（Turf.js 使用 [longitude, latitude] 格式）
+  const pointFeature = point([lonNum, latNum]);
+
+  try {
+    // 檢查 Prisma 是否可用
+    if (!prisma || !prisma.twGeoJson) {
+      console.warn('Prisma 不可用，使用備用方案');
+      return getLocationNameByCoordinatesFallback(lat, lon);
+    }
+
+    // 從資料庫查詢所有縣市邊界資料
+    const counties = await prisma.twGeoJson.findMany({
+      select: {
+        Name: true,
+        Area: true,
+      },
+    });
+
+    // 如果沒有資料，使用備用方案
+    if (!counties || counties.length === 0) {
+      console.warn('資料庫中沒有縣市邊界資料，使用備用方案');
+      return getLocationNameByCoordinatesFallback(lat, lon);
+    }
+
+    // 遍歷每個縣市，檢查點是否在邊界內
+    for (const county of counties) {
+      if (!county.Area) continue;
+
+      try {
+        // 解析 GeoJSON 資料
+        const geoJsonData = JSON.parse(county.Area);
+        const geometry = geoJsonData.geometry;
+
+        if (!geometry) continue;
+
+        // 處理 Polygon 和 MultiPolygon 兩種幾何類型
+        if (geometry.type === 'Polygon') {
+          // 對於 Polygon，檢查點是否在外環（第一個座標陣列）內
+          const polygon = {
+            type: 'Feature',
+            geometry: geometry,
+          };
+          if (booleanPointInPolygon(pointFeature, polygon)) {
+            return county.Name || '未知縣市';
+          }
+        } else if (geometry.type === 'MultiPolygon') {
+          // 對於 MultiPolygon，檢查點是否在任何一個 Polygon 內
+          for (const polygonCoords of geometry.coordinates) {
+            const polygon = {
+              type: 'Feature',
+              geometry: {
+                type: 'Polygon',
+                coordinates: polygonCoords,
+              },
+            };
+            if (booleanPointInPolygon(pointFeature, polygon)) {
+              return county.Name || '未知縣市';
+            }
+          }
+        }
+      } catch (parseError) {
+        // 如果解析失敗，跳過這個縣市
+        console.error(`解析縣市 ${county.Name} 的 GeoJSON 失敗:`, parseError);
+        continue;
+      }
+    }
+
+    // 如果資料庫查詢失敗或找不到匹配的縣市，使用備用方案
+    console.warn('無法從資料庫找到匹配的縣市，使用備用方案');
+    return getLocationNameByCoordinatesFallback(lat, lon);
+  } catch (error) {
+    // 如果資料庫查詢失敗，使用備用方案
+    console.error('查詢資料庫失敗，使用備用方案:', error);
+    return getLocationNameByCoordinatesFallback(lat, lon);
+  }
+}
+
+/**
+ * 備用方案：使用硬編碼的經緯度範圍對照表
  * @param {number} lat - 緯度
  * @param {number} lon - 經度
  * @returns {string} 縣市名稱
  */
-function getLocationNameByCoordinates(lat, lon) {
+function getLocationNameByCoordinatesFallback(lat, lon) {
   const latNum = parseFloat(lat);
   const lonNum = parseFloat(lon);
 
@@ -48,7 +137,7 @@ function getLocationNameByCoordinates(lat, lon) {
     }
   }
 
-  // 如果找不到，根據緯度大致判斷區域，預設返回臺北市
+  // 如果找不到，預設返回臺北市
   return '臺北市';
 }
 
@@ -77,8 +166,8 @@ export async function GET(request) {
   }
 
   try {
-    // 根據經緯度動態決定位置名稱
-    const locationName = getLocationNameByCoordinates(lat, lon);
+    // 根據經緯度動態決定位置名稱（使用資料庫中的 twgeojson 資料）
+    const locationName = await getLocationNameByCoordinates(lat, lon);
     
     // CWA API 請求
     const cwaApiUrl = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-C0032-001?Authorization=${CWA_API_KEY}&format=JSON&locationName=${encodeURIComponent(locationName)}`;

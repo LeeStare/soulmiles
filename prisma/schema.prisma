@@ -173,3 +173,14 @@ model MapRecordPicture {
   @@index([record_id], map: "MapRecordPicture_record_id_fkey")
   @@map("MapRecordPicture")
 }
+
+model TwGeoJson {
+  id          String   @id @default(uuid())
+  CountyID    String?  @map("CountyID") // 縣市ID
+  Name        String?  // 縣市名稱
+  Area        String?  @db.LongText // GeoJSON 邊界資料
+  Create_time DateTime @default(now())
+  Update_time DateTime @default(now()) @updatedAt
+
+  @@map("twgeojson")
+}
