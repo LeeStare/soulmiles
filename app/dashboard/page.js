@@ -19,8 +19,15 @@ export default function DashboardPage() {
   const [recommendations, setRecommendations] = useState(null);
   const [crowdData, setCrowdData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [bountyAmount] = useState(Math.floor(Math.random() * (1000000 - 1000 + 1)) + 1000);
+  const [bountyAmount, setBountyAmount] = useState(null); // 懸賞金額（從 API 獲取）
+  const [bountyDisplayAmount, setBountyDisplayAmount] = useState(1000); // 顯示的金額（動畫用）
+  const [bountyLoading, setBountyLoading] = useState(true); // 懸賞金額載入狀態
+  const [bountyBreakdown, setBountyBreakdown] = useState(null); // 懸賞金額詳細分解
+  const [bountyTotalScore, setBountyTotalScore] = useState(null); // 總合適度分數
   const [bountyIndex, setBountyIndex] = useState(0); // 懸賞單分頁索引
+  const [bountyShowDetails, setBountyShowDetails] = useState(false); // 是否顯示詳細評分
+  const [bountySwipeStart, setBountySwipeStart] = useState(null); // 滑動起始位置
+  const [selectedTarotCard, setSelectedTarotCard] = useState(null); // 選中的塔羅牌
 
   // 獲取用戶位置
   useEffect(() => {
@@ -121,11 +128,227 @@ export default function DashboardPage() {
     }
   }, [userLocation]);
 
+  // 獲取出遊合適度並計算懸賞金額
+  useEffect(() => {
+    if (userLocation && session) {
+      setBountyLoading(true);
+      setBountyDisplayAmount(1000); // 重置顯示金額
+      
+      // 開始數字動畫（快速變化）
+      const minAmount = 1000;
+      const maxAmount = 1000000;
+      let currentAmount = minAmount;
+      let transitionInterval = null;
+      
+      const animationInterval = setInterval(() => {
+        // 每次增加隨機值，讓數字快速變化
+        const increment = Math.random() * (maxAmount - minAmount) * 0.1;
+        currentAmount = Math.min(maxAmount, currentAmount + increment);
+        setBountyDisplayAmount(Math.floor(currentAmount));
+      }, 50); // 每 50ms 更新一次，讓數字快速變化
+      
+      fetch(`/api/dashboard/bounty?lat=${userLocation.lat}&lon=${userLocation.lon}`)
+        .then((res) => res.json())
+        .then((data) => {
+          clearInterval(animationInterval); // 停止快速變化動畫
+          
+          if (data.bountyAmount) {
+            // 平滑過渡到實際金額
+            const targetAmount = data.bountyAmount;
+            const startAmount = currentAmount;
+            const duration = 500; // 500ms 過渡時間
+            const startTime = Date.now();
+            
+            transitionInterval = setInterval(() => {
+              const elapsed = Date.now() - startTime;
+              const progress = Math.min(1, elapsed / duration);
+              
+              // 使用緩動函數讓過渡更平滑
+              const easeOutCubic = 1 - Math.pow(1 - progress, 3);
+              const newAmount = Math.floor(startAmount + (targetAmount - startAmount) * easeOutCubic);
+              
+              setBountyDisplayAmount(newAmount);
+              
+              if (progress >= 1) {
+                clearInterval(transitionInterval);
+                transitionInterval = null;
+                setBountyAmount(targetAmount);
+                setBountyDisplayAmount(targetAmount);
+                setBountyBreakdown(data.breakdown);
+                setBountyTotalScore(data.totalScore);
+                setBountyLoading(false);
+              }
+            }, 16); // 約 60fps
+            
+            // 先設置其他資料
+            setBountyBreakdown(data.breakdown);
+            setBountyTotalScore(data.totalScore);
+          } else {
+            // 如果 API 失敗，使用預設值
+            setBountyAmount(50000);
+            setBountyDisplayAmount(50000);
+            setBountyTotalScore(50);
+            setBountyLoading(false);
+          }
+        })
+        .catch((err) => {
+          console.error('獲取懸賞金額失敗:', err);
+          clearInterval(animationInterval);
+          // 發生錯誤時使用預設值
+          setBountyAmount(50000);
+          setBountyDisplayAmount(50000);
+          setBountyLoading(false);
+        });
+      
+      // 清理函數
+      return () => {
+        clearInterval(animationInterval);
+        if (transitionInterval) {
+          clearInterval(transitionInterval);
+        }
+      };
+    } else if (!session) {
+      // 未登入時使用預設值
+      setBountyAmount(50000);
+      setBountyDisplayAmount(50000);
+      setBountyLoading(false);
+    }
+  }, [userLocation, session]);
+
   // 觸發登入模態視窗
   const handleLoginClick = () => {
     const headerButton = document.querySelector('header button[title="靈魂聖殿"]');
     if (headerButton) {
       headerButton.click();
+    }
+  };
+
+  // 將分數轉換為星星數量（0-100分轉換為0-5顆星，精確到小數點後兩位）
+  const scoreToStars = (score) => {
+    if (!score && score !== 0) return 0;
+    // 將 0-100 分線性轉換為 0-5 顆星
+    const stars = (score / 100) * 5;
+    return Math.round(stars * 100) / 100; // 保留兩位小數
+  };
+
+  // 渲染星星（支持部分星星）
+  const renderStars = (starValue) => {
+    const fullStars = Math.floor(starValue);
+    const partialStar = starValue - fullStars;
+    const emptyStars = 5 - Math.ceil(starValue);
+    
+    return (
+      <div className="flex items-center gap-1">
+        {/* 完整星星 */}
+        {Array.from({ length: fullStars }).map((_, index) => (
+          <span key={`full-${index}`} className="text-lg text-treasure-gold">
+            ★
+          </span>
+        ))}
+        {/* 部分星星 */}
+        {partialStar > 0 && (
+          <span className="text-lg relative inline-block">
+            <span className="text-soul-glow/20">★</span>
+            <span
+              className="text-treasure-gold absolute left-0 top-0 overflow-hidden"
+              style={{ width: `${partialStar * 100}%` }}
+            >
+              ★
+            </span>
+          </span>
+        )}
+        {/* 空星星 */}
+        {Array.from({ length: emptyStars }).map((_, index) => (
+          <span key={`empty-${index}`} className="text-lg text-soul-glow/20">
+            ★
+          </span>
+        ))}
+        {/* 顯示數值 */}
+        <span className="text-xs text-soul-glow/70 ml-2 tabular-nums">
+          {starValue.toFixed(2)}
+        </span>
+      </div>
+    );
+  };
+
+  // 處理滑動開始
+  const handleBountySwipeStart = (e) => {
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    setBountySwipeStart(clientX);
+  };
+
+  // 塔羅牌數據（22張大阿卡納牌）
+  const tarotCards = [
+    { name: '愚者', emoji: '🃏', message: '放下包袱，踏上未知的旅程，每一次出發都是新的開始。' },
+    { name: '魔術師', emoji: '🪄', message: '運用你的智慧與創意，規劃一場完美的旅行，讓夢想成真。' },
+    { name: '女祭司', emoji: '🌙', message: '靜下心來，聆聽內心的聲音，選擇最適合你的目的地。' },
+    { name: '皇后', emoji: '👑', message: '享受旅程中的每一刻美好，讓自己沉浸在當下的幸福中。' },
+    { name: '皇帝', emoji: '⚔️', message: '制定明確的旅行計劃，掌控行程，讓旅程井然有序。' },
+    { name: '教皇', emoji: '📿', message: '探索當地的文化與傳統，讓旅行成為一次心靈的洗禮。' },
+    { name: '戀人', emoji: '💑', message: '與摯愛同行，創造屬於你們的美好回憶，讓愛在旅途中綻放。' },
+    { name: '戰車', emoji: '🏇', message: '勇敢前行，克服旅途中的困難，勝利就在前方等待。' },
+    { name: '力量', emoji: '💪', message: '相信自己，你有足夠的力量去探索這個美麗的世界。' },
+    { name: '隱者', emoji: '🔦', message: '獨自旅行，在寧靜中尋找自我，發現內心的平靜與智慧。' },
+    { name: '命運之輪', emoji: '🎡', message: '命運的輪盤正在轉動，新的旅程即將展開，把握機會。' },
+    { name: '正義', emoji: '⚖️', message: '在旅途中保持平衡，做出明智的選擇，讓旅程更加完美。' },
+    { name: '倒吊人', emoji: '🙃', message: '換個角度看世界，也許會發現意想不到的美麗風景。' },
+    { name: '死神', emoji: '💀', message: '結束舊的旅程，迎接新的開始，每一次結束都是新的起點。' },
+    { name: '節制', emoji: '🍷', message: '在旅途中保持節制與平衡，享受當下，不要過度消耗。' },
+    { name: '惡魔', emoji: '😈', message: '小心旅途中的誘惑，保持理性，不要被表面的美好迷惑。' },
+    { name: '塔', emoji: '🗼', message: '打破舊有的框架，勇敢嘗試新的體驗，讓旅行改變你。' },
+    { name: '星星', emoji: '⭐', message: '在旅途中尋找希望與靈感，讓星星指引你前進的方向。' },
+    { name: '月亮', emoji: '🌙', message: '在夜晚的旅途中，感受神秘與浪漫，讓月光照亮你的路。' },
+    { name: '太陽', emoji: '☀️', message: '陽光普照的旅程，充滿活力與歡樂，享受每一刻的溫暖。' },
+    { name: '審判', emoji: '📯', message: '回顧過去的旅程，從中學習與成長，為下一次旅行做準備。' },
+    { name: '世界', emoji: '🌍', message: '完成一次完美的旅程，收穫滿滿的回憶與成長，準備探索更廣闊的世界。' },
+  ];
+
+  // 隨機選擇一張塔羅牌
+  const selectRandomTarotCard = () => {
+    const randomIndex = Math.floor(Math.random() * tarotCards.length);
+    setSelectedTarotCard(tarotCards[randomIndex]);
+  };
+
+  // 處理滑動結束
+  const handleBountySwipeEnd = (e) => {
+    if (bountySwipeStart === null) return;
+    
+    const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+    const deltaX = clientX - bountySwipeStart;
+    
+    // 如果往右滑動超過 50px
+    if (deltaX > 50) {
+      if (bountyIndex === 0) {
+        setBountyIndex(1);
+        setBountyShowDetails(true);
+      } else if (bountyIndex === 1) {
+        setBountyIndex(2);
+        selectRandomTarotCard();
+      }
+    }
+    // 如果往左滑動超過 50px
+    else if (deltaX < -50) {
+      if (bountyIndex === 2) {
+        setBountyIndex(1);
+        setBountyShowDetails(true);
+      } else if (bountyIndex === 1) {
+        setBountyIndex(0);
+        setBountyShowDetails(false);
+      }
+    }
+    
+    setBountySwipeStart(null);
+  };
+
+  // 處理點擊分頁指示器
+  const handleBountyPageClick = (index) => {
+    setBountyIndex(index);
+    if (index === 0) {
+      setBountyShowDetails(false);
+    } else if (index === 1) {
+      setBountyShowDetails(true);
+    } else if (index === 2) {
+      selectRandomTarotCard();
     }
   };
 
@@ -151,7 +374,13 @@ export default function DashboardPage() {
 
         {/* 海盜懸賞單卡片（頂部大卡片，參考附圖） */}
         <div className="w-full mb-4">
-          <div className="gothic-button p-5 rounded-lg relative overflow-hidden">
+          <div 
+            className="gothic-button p-5 rounded-lg relative overflow-hidden cursor-grab active:cursor-grabbing"
+            onTouchStart={handleBountySwipeStart}
+            onTouchEnd={handleBountySwipeEnd}
+            onMouseDown={handleBountySwipeStart}
+            onMouseUp={handleBountySwipeEnd}
+          >
             {/* 捲軸裝飾 */}
             <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-[#f0d9b5]/20 to-transparent" />
             <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#f0d9b5]/20 to-transparent" />
@@ -165,47 +394,147 @@ export default function DashboardPage() {
             </div>
 
             <div className="relative z-10">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-serif text-treasure-gold">🏴‍☠️ 懸賞單</h2>
-                <span className="text-xs text-soul-glow/60">WANTED</span>
-              </div>
-              <div className="text-center mb-4">
-                <p className="text-xs text-soul-glow/70 mb-1">越適合出遊獎金越高</p>
-                <p className="text-3xl font-bold text-treasure-gold">
-                  {bountyAmount.toLocaleString()} <span className="text-lg">SoulCoins</span>
-                </p>
-              </div>
-              {session ? (
-                // 登入後顯示用戶頭像
-                <div className="flex items-center justify-center">
-                  {session.user?.image ? (
-                    <img
-                      src={session.user.image}
-                      alt={session.user.name || 'User'}
-                      className="w-16 h-16 rounded-full object-cover border-2 border-treasure-gold/50 shadow-lg"
-                    />
-                  ) : (
-                    <div className="w-16 h-16 rounded-full bg-treasure-gold/20 border-2 border-treasure-gold/50 flex items-center justify-center">
-                      <span className="text-2xl text-treasure-gold">👤</span>
+              {/* 主要內容（懸賞金額） */}
+              <div className={`transition-all duration-300 ${bountyIndex === 0 ? 'opacity-100' : 'opacity-0 absolute inset-0 pointer-events-none'}`}>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-lg font-serif text-treasure-gold">🏴‍☠️ 懸賞單</h2>
+                  <span className="text-xs text-soul-glow/60">WANTED</span>
+                </div>
+                <div className="text-center mb-4">
+                  <p className="text-xs text-soul-glow/70 mb-1">越適合出遊獎金越高</p>
+                  <p className="text-3xl font-bold text-treasure-gold">
+                    {bountyLoading ? (
+                      <span className="tabular-nums">{bountyDisplayAmount.toLocaleString()}</span>
+                    ) : (
+                      <span className="tabular-nums">{bountyAmount ? bountyAmount.toLocaleString() : '50,000'}</span>
+                    )}{' '}
+                    <span className="text-lg">SoulCoins</span>
+                  </p>
+                  {bountyTotalScore !== null && !bountyLoading && (
+                    <div className="mt-2 text-xs text-soul-glow/50">
+                      <p>合適度: {Math.round(bountyTotalScore)}%</p>
                     </div>
                   )}
                 </div>
-              ) : (
-                // 未登入時顯示登入按鈕
-                <button
-                  onClick={handleLoginClick}
-                  className="w-full py-2 px-4 rounded-lg border border-treasure-gold/50 bg-[#2b1a10]/70 text-treasure-gold text-sm font-semibold hover:bg-treasure-gold/20 transition-colors"
-                >
-                  登入以領取懸賞
-                </button>
-              )}
+                {session ? (
+                  // 登入後顯示用戶頭像
+                  <div className="flex items-center justify-center">
+                    {session.user?.image ? (
+                      <img
+                        src={session.user.image}
+                        alt={session.user.name || 'User'}
+                        className="w-16 h-16 rounded-full object-cover border-2 border-treasure-gold/50 shadow-lg"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-full bg-treasure-gold/20 border-2 border-treasure-gold/50 flex items-center justify-center">
+                        <span className="text-2xl text-treasure-gold">👤</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  // 未登入時顯示登入按鈕
+                  <button
+                    onClick={handleLoginClick}
+                    className="w-full py-2 px-4 rounded-lg border border-treasure-gold/50 bg-[#2b1a10]/70 text-treasure-gold text-sm font-semibold hover:bg-treasure-gold/20 transition-colors"
+                  >
+                    登入以領取懸賞
+                  </button>
+                )}
+              </div>
+
+              {/* 詳細評分內容 */}
+              <div className={`transition-all duration-300 ${bountyIndex === 1 ? 'opacity-100' : 'opacity-0 absolute inset-0 pointer-events-none'}`}>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-lg font-serif text-treasure-gold">⭐ 評分詳情</h2>
+                  <span className="text-xs text-soul-glow/60">DETAILS</span>
+                </div>
+                <div className="space-y-3">
+                  {bountyBreakdown ? (
+                    <>
+                      {/* 天氣因素 */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-soul-glow">天氣因素</span>
+                        {renderStars(scoreToStars(bountyBreakdown.weather?.score || 0))}
+                      </div>
+                      {/* 交通便利性 */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-soul-glow">交通便利性</span>
+                        {renderStars(scoreToStars(bountyBreakdown.transport?.score || 0))}
+                      </div>
+                      {/* 時間因素 */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-soul-glow">時間因素</span>
+                        {renderStars(scoreToStars(bountyBreakdown.time?.score || 0))}
+                      </div>
+                      {/* 周邊設施 */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-soul-glow">周邊設施</span>
+                        {renderStars(scoreToStars(bountyBreakdown.facility?.score || 0))}
+                      </div>
+                      {/* 人潮狀況 */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-soul-glow">人潮狀況</span>
+                        {renderStars(scoreToStars(bountyBreakdown.crowd?.score || 0))}
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-xs text-soul-glow/60 text-center py-4">載入中...</p>
+                  )}
+                </div>
+              </div>
+
+              {/* 塔羅牌占卜內容 */}
+              <div className={`transition-all duration-300 ${bountyIndex === 2 ? 'opacity-100' : 'opacity-0 absolute inset-0 pointer-events-none'}`}>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-lg font-serif text-treasure-gold">🔮 塔羅占卜</h2>
+                  <span className="text-xs text-soul-glow/60">TAROT</span>
+                </div>
+                <div className="text-center space-y-4">
+                  {selectedTarotCard ? (
+                    <>
+                      {/* 塔羅牌顯示 */}
+                      <div className="flex flex-col items-center justify-center py-6">
+                        <div className="text-6xl mb-3 animate-pulse">
+                          {selectedTarotCard.emoji}
+                        </div>
+                        <h3 className="text-xl font-serif text-treasure-gold mb-2">
+                          {selectedTarotCard.name}
+                        </h3>
+                      </div>
+                      {/* 旅遊句子 */}
+                      <div className="bg-[#2b1a10]/50 border border-treasure-gold/30 rounded-lg p-4">
+                        <p className="text-sm text-soul-glow leading-relaxed italic">
+                          "{selectedTarotCard.message}"
+                        </p>
+                      </div>
+                      {/* 重新抽牌按鈕 */}
+                      <button
+                        onClick={selectRandomTarotCard}
+                        className="w-full py-2 px-4 rounded-lg border border-treasure-gold/50 bg-[#2b1a10]/70 text-treasure-gold text-sm font-semibold hover:bg-treasure-gold/20 transition-colors"
+                      >
+                        重新抽牌 🔄
+                      </button>
+                    </>
+                  ) : (
+                    <div className="py-8">
+                      <p className="text-xs text-soul-glow/60">點擊下方按鈕開始占卜</p>
+                      <button
+                        onClick={selectRandomTarotCard}
+                        className="mt-4 w-full py-2 px-4 rounded-lg border border-treasure-gold/50 bg-[#2b1a10]/70 text-treasure-gold text-sm font-semibold hover:bg-treasure-gold/20 transition-colors"
+                      >
+                        抽取塔羅牌 🎴
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
               
               {/* 分頁指示器（三個小圓點） */}
               <div className="flex justify-center gap-2 mt-4">
                 {[0, 1, 2].map((index) => (
                   <button
                     key={index}
-                    onClick={() => setBountyIndex(index)}
+                    onClick={() => handleBountyPageClick(index)}
                     className={`w-2 h-2 rounded-full transition-all ${
                       bountyIndex === index
                         ? 'w-8 bg-treasure-gold'
