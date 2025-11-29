@@ -72,8 +72,40 @@ interface QuestMapProps {
 export default function QuestMap({ tasks }: QuestMapProps) {
   // 預設中心點（台北）
   const defaultCenter: [number, number] = [25.0330, 121.5654];
-  const [mapCenter] = useState<[number, number]>(defaultCenter);
+  const [mapCenter, setMapCenter] = useState<[number, number]>(defaultCenter);
   const [mapZoom] = useState(13);
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [locationLoading, setLocationLoading] = useState(true);
+
+  // 獲取用戶當前位置
+  useEffect(() => {
+    if (typeof window === 'undefined' || !navigator.geolocation) {
+      setLocationLoading(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        const userPos: [number, number] = [lat, lon];
+        setUserLocation(userPos);
+        setMapCenter(userPos); // 將地圖中心點設置為用戶位置
+        setLocationLoading(false);
+      },
+      (error) => {
+        console.error('獲取位置失敗:', error);
+        // 如果獲取位置失敗，使用預設位置
+        setLocationLoading(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
+    );
+  }, []);
+
 
   // 解析座標字符串為 [lat, lng]
   const parseCoordinate = (coord: string | null): [number, number] | null => {
@@ -118,6 +150,37 @@ export default function QuestMap({ tasks }: QuestMapProps) {
     });
   }, []);
 
+  // 創建用戶位置圖標
+  const userLocationIcon = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    const L = require('leaflet');
+    return L.divIcon({
+      className: 'custom-user-marker',
+      html: `
+        <div style="
+          background: radial-gradient(circle, #fbbf24 0%, #f59e0b 100%);
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          border: 3px solid white;
+          box-shadow: 0 0 10px rgba(251,191,36,0.8), 0 0 20px rgba(251,191,36,0.4);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        ">
+          <div style="
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+          "></div>
+        </div>
+      `,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+    });
+  }, []);
+
   if (typeof window === 'undefined' || !taskIcon) {
     return (
       <div className="w-full h-full bg-gothic-dark/80 backdrop-blur-sm rounded-lg border-2 border-soul-glow/30 flex items-center justify-center">
@@ -132,6 +195,7 @@ export default function QuestMap({ tasks }: QuestMapProps) {
   return (
     <div className="w-full h-full relative">
       <MapContainer
+        key={userLocation ? `map-${userLocation[0]}-${userLocation[1]}` : 'map-default'} // 使用 key 強制重新渲染當用戶位置改變時
         center={mapCenter}
         zoom={mapZoom}
         style={{ height: '100%', width: '100%', minHeight: '300px' }}
@@ -146,6 +210,17 @@ export default function QuestMap({ tasks }: QuestMapProps) {
           subdomains="abcd"
           maxZoom={20}
         />
+        
+        {/* 用戶位置標記 */}
+        {userLocation && userLocationIcon && (
+          <Marker position={userLocation} icon={userLocationIcon}>
+            <Popup>
+              <div className="text-gray-800">
+                <strong className="text-amber-600">📍 您的位置</strong>
+              </div>
+            </Popup>
+          </Marker>
+        )}
         
         {/* 任務點 */}
         {tasks.map((task) => {

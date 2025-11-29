@@ -143,12 +143,16 @@ model Task {
   coordinate  String?    @db.Text
   Coin        Int        @default(0)
   isTemporary Boolean    @default(false) // 是否為臨時任務（由好友足跡產生）
+  isMainTask  Boolean    @default(false) // 是否為主要任務（每日任務）
+  assignedUserId String? // 指派給的用戶ID（主要任務專屬）
+  refreshDate DateTime?  // 任務刷新日期（用於判斷是否需要刷新）
   relatedUserId String?  // 相關的使用者 ID（如果是臨時任務，記錄是哪位好友的足跡）
   relatedMapRecordId String? // 相關的 MapRecord ID
   Create_time DateTime   @default(now())
   Update_time DateTime   @default(now()) @updatedAt
   userTasks   UserTask[]
-
+  
+  @@index([assignedUserId, isMainTask], map: "Task_assignedUserId_isMainTask_idx")
   @@map("Task")
 }
 

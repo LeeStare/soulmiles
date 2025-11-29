@@ -6,6 +6,8 @@ interface Task {
   description: string | null;
   coordinate: string | null;
   Coin: number;
+  isTemporary?: boolean;
+  isMainTask?: boolean;
 }
 
 interface QuestListProps {
@@ -42,7 +44,9 @@ export default function QuestList({ tasks, onViewTask, loading }: QuestListProps
         <div
           key={task.id}
           className={`gothic-button p-4 rounded-lg border transition-colors ${
-            task.isTemporary
+            task.isMainTask
+              ? 'border-[#fbbf24]/70 bg-[#fbbf24]/10 hover:border-[#fbbf24]/90'
+              : task.isTemporary
               ? 'border-sky-400/70 bg-sky-900/30 hover:border-sky-300/90'
               : 'border-[#f0d9b5]/30 hover:border-[#fbbf24]/50'
           }`}
@@ -50,10 +54,21 @@ export default function QuestList({ tasks, onViewTask, loading }: QuestListProps
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
               <h4 className="text-base font-semibold mb-1">
-                <span className={task.isTemporary ? 'text-sky-300' : 'text-[#f7e7c7]'}>
+                <span className={
+                  task.isMainTask 
+                    ? 'text-[#fbbf24]' 
+                    : task.isTemporary 
+                    ? 'text-sky-300' 
+                    : 'text-[#f7e7c7]'
+                }>
                   {task.name || '未命名任務'}
                 </span>
-                {task.isTemporary && (
+                {task.isMainTask && (
+                  <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-[#fbbf24]/20 text-[#fbbf24] border border-[#fbbf24]/50 align-middle">
+                    ⭐ 每日任務
+                  </span>
+                )}
+                {task.isTemporary && !task.isMainTask && (
                   <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-400/50 align-middle">
                     臨時任務
                   </span>

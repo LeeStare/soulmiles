@@ -10,9 +10,14 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const tasks = await prisma.task.findMany({
-      orderBy: {
-        Create_time: 'desc',
-      },
+      orderBy: [
+        {
+          isMainTask: 'desc', // 主要任務優先
+        },
+        {
+          Create_time: 'desc',
+        },
+      ],
     });
 
     return NextResponse.json({ tasks });

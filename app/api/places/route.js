@@ -792,7 +792,7 @@ export async function GET(request) {
       // 使用 Foursquare Places API 搜尋附近景區
       // 注意：根據 Foursquare API 遷移指南，可能需要使用新的端點格式
       // 如果此端點仍然返回 410，請參考遷移指南更新端點 URL
-      const searchUrl = `https://api.foursquare.com/v3/places/search`;
+      const searchUrl = `https://places-api.foursquare.com/places/search`;
       
       const searchParams = new URLSearchParams({
         ll: `${lat},${lon}`, // 經緯度
@@ -870,7 +870,7 @@ export async function GET(request) {
       // 取得景區詳細資訊
       let placeDetails = null;
       try {
-        const detailsUrl = `https://api.foursquare.com/v3/places/${place.fsq_id}`;
+        const detailsUrl = `https://places-api.foursquare.com/places/${place.fsq_id}`;
         const detailsResponse = await fetch(detailsUrl, {
           method: 'GET',
           headers: {

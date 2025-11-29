@@ -12,6 +12,7 @@ interface Task {
   coordinate: string | null;
   Coin: number;
   isTemporary?: boolean;
+  isMainTask?: boolean;
 }
 
 /**
@@ -24,10 +25,68 @@ export default function QuestTab() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [friendCheckEnabled, setFriendCheckEnabled] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
+
+  // 獲取用戶位置
+  useEffect(() => {
+    if (typeof window !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lon: position.coords.longitude,
+          });
+        },
+        (error) => {
+          console.error('獲取位置失敗:', error);
+          // 使用預設位置（台北）
+          setUserLocation({ lat: 25.0330, lon: 121.5654 });
+        },
+        { enableHighAccuracy: true, timeout: 5000 }
+      );
+    } else {
+      // 使用預設位置
+      setUserLocation({ lat: 25.0330, lon: 121.5654 });
+    }
+  }, []);
+
+  // 檢查並刷新主要任務
+  useEffect(() => {
+    if (userLocation) {
+      checkAndRefreshMainTask();
+    }
+  }, [userLocation]);
 
   useEffect(() => {
     fetchTasks();
   }, []);
+
+  const checkAndRefreshMainTask = async () => {
+    try {
+      const response = await fetch('/api/footprint/refresh-main-task', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          lat: userLocation?.lat,
+          lon: userLocation?.lon,
+          useAI: false, // 預設不使用 AI 以節省成本
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.refreshed) {
+          console.log('主要任務已刷新');
+          // 刷新任務列表
+          await fetchTasks();
+        }
+      }
+    } catch (error) {
+      console.error('檢查主要任務失敗:', error);
+    }
+  };
 
   // 每五分鐘檢查一次附近好友足跡，產生臨時任務
   useEffect(() => {
