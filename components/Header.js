@@ -124,7 +124,13 @@ export default function Header() {
             ) : (
               <div className="mt-4 space-y-2">
                 <GoogleSignInButton onModalClose={() => setIsModalOpen(false)} />
-                <button className="w-full rounded-lg border border-[#fbbf24]/50 py-2 text-sm font-semibold text-[#f6d8a7]">
+                <button
+                  onClick={async () => {
+                    await signIn('facebook', { callbackUrl: window.location.origin });
+                    setIsModalOpen(false);
+                  }}
+                  className="w-full rounded-lg border border-[#fbbf24]/50 py-2 text-sm font-semibold text-[#f6d8a7] hover:border-[#fbbf24] hover:bg-[#fbbf24]/10 transition-colors"
+                >
                   以 Facebook 免密碼登入
                 </button>
                 <p className="text-center text-[0.7rem] text-[#f1e3c3]/60">
