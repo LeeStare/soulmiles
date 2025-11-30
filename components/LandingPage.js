@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from './Header';
 import LoadingAnimation from './LoadingAnimation';
+import WorldChannelTicker from './WorldChannelTicker';
 
 /**
  * LandingPage - SoulMiles 啟動頁面
@@ -87,9 +88,10 @@ export default function LandingPage() {
           <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-1 sm:mb-2 text-transparent bg-clip-text bg-gradient-to-r from-soul-glow via-gothic-purple to-treasure-gold drop-shadow-[0_0_10px_rgba(167,139,250,0.5)]">
             SoulMiles
           </h1>
-          <p className="text-xs sm:text-sm md:text-base text-soul-glow/60">
-            迷霧中的靈魂之旅
-          </p>
+          {/* 世界頻道輪播訊息 */}
+          <div className="flex items-center justify-center mt-8 sm:mt-10">
+            <WorldChannelTicker />
+          </div>
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center w-full max-w-md overflow-hidden min-h-0 py-2">
