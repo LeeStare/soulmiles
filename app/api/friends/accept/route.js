@@ -46,36 +46,60 @@ export async function POST(request) {
       return NextResponse.json({ error: '無權限處理此請求' }, { status: 403 });
     }
 
-    // 更新好友請求狀態為 accepted
-    await prisma.friend.update({
-      where: { id: requestId },
-      data: { status: 'accepted' },
-    });
-
-    // 檢查是否已存在反向關係
-    const existingReverse = await prisma.friend.findFirst({
-      where: {
-        user_id: user.id,
-        friend_id: friendRequest.user_id,
-      },
-    });
-
-    if (!existingReverse) {
-      // 建立反向好友關係（雙向好友）
-      await prisma.friend.create({
-        data: {
-          user_id: user.id,
-          friend_id: friendRequest.user_id,
-          status: 'accepted',
-        },
-      });
-    } else if (existingReverse.status !== 'accepted') {
-      // 如果存在但狀態不是 accepted，更新狀態
-      await prisma.friend.update({
-        where: { id: existingReverse.id },
+    // 使用事務確保原子性，避免重複創建
+    await prisma.$transaction(async (tx) => {
+      // 更新好友請求狀態為 accepted
+      await tx.friend.update({
+        where: { id: requestId },
         data: { status: 'accepted' },
       });
-    }
+
+      // 在事務中檢查是否已存在反向關係
+      const existingReverse = await tx.friend.findFirst({
+        where: {
+          user_id: user.id,
+          friend_id: friendRequest.user_id,
+        },
+      });
+
+      if (!existingReverse) {
+        // 建立反向好友關係（雙向好友）
+        // 使用 create 並在發生唯一約束錯誤時捕獲（防止並發問題）
+        try {
+          await tx.friend.create({
+            data: {
+              user_id: user.id,
+              friend_id: friendRequest.user_id,
+              status: 'accepted',
+            },
+          });
+        } catch (createError) {
+          // 如果因為唯一約束錯誤（並發創建），則更新現有記錄
+          if (createError.code === 'P2002') {
+            const existing = await tx.friend.findFirst({
+              where: {
+                user_id: user.id,
+                friend_id: friendRequest.user_id,
+              },
+            });
+            if (existing && existing.status !== 'accepted') {
+              await tx.friend.update({
+                where: { id: existing.id },
+                data: { status: 'accepted' },
+              });
+            }
+          } else {
+            throw createError;
+          }
+        }
+      } else if (existingReverse.status !== 'accepted') {
+        // 如果存在但狀態不是 accepted，更新狀態
+        await tx.friend.update({
+          where: { id: existingReverse.id },
+          data: { status: 'accepted' },
+        });
+      }
+    });
 
     // 標記通知為已讀
     await prisma.notification.updateMany({

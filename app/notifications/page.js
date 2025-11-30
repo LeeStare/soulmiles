@@ -11,6 +11,7 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [processingRequestId, setProcessingRequestId] = useState(null);
 
   // 如果未登入，導向首頁
   useEffect(() => {
@@ -72,6 +73,12 @@ export default function NotificationsPage() {
 
   // 接受好友請求
   const handleAcceptFriend = async (notification) => {
+    // 防止重複點擊
+    if (processingRequestId === notification.related_id) {
+      return;
+    }
+
+    setProcessingRequestId(notification.related_id);
     try {
       const response = await fetch('/api/friends/accept', {
         method: 'POST',
@@ -92,6 +99,8 @@ export default function NotificationsPage() {
     } catch (error) {
       console.error('接受好友請求失敗:', error);
       alert('接受好友請求失敗，請稍後再試');
+    } finally {
+      setProcessingRequestId(null);
     }
   };
 
@@ -201,13 +210,15 @@ export default function NotificationsPage() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleAcceptFriend(notification)}
-                        className="px-4 py-2 bg-[#fbbf24] text-[#1b0e07] rounded-lg text-sm font-semibold hover:bg-[#f59e0b] transition-colors whitespace-nowrap"
+                        disabled={processingRequestId === notification.related_id}
+                        className="px-4 py-2 bg-[#fbbf24] text-[#1b0e07] rounded-lg text-sm font-semibold hover:bg-[#f59e0b] transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        接受
+                        {processingRequestId === notification.related_id ? '處理中...' : '接受'}
                       </button>
                       <button
                         onClick={() => handleRejectFriend(notification)}
-                        className="px-4 py-2 border border-[#fbbf24]/50 text-[#fbbf24] rounded-lg text-sm font-semibold hover:border-[#fbbf24] hover:bg-[#fbbf24]/10 transition-colors whitespace-nowrap"
+                        disabled={processingRequestId === notification.related_id}
+                        className="px-4 py-2 border border-[#fbbf24]/50 text-[#fbbf24] rounded-lg text-sm font-semibold hover:border-[#fbbf24] hover:bg-[#fbbf24]/10 transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         拒絕
                       </button>

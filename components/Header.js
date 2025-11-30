@@ -111,23 +111,28 @@ export default function Header() {
             )
           }
         >
-          <div className="space-y-3">
-            {menuItems.map((item) => (
-              <button
-                key={item.label}
-                onClick={() => {
-                  if (item.label === '會員中心') {
-                    router.push('/member-center');
-                    setIsModalOpen(false);
-                  }
-                }}
-                className="w-full rounded-xl border border-[#fbbf24]/30 bg-[#2b1a10]/70 px-4 py-3 text-left hover:border-[#fbbf24] transition-colors"
-              >
-                <p className="text-sm font-semibold text-[#fbbf24]">{item.label}</p>
-                <p className="text-xs text-[#f7e7c7]/70">{item.description}</p>
-              </button>
-            ))}
-          </div>
+          {session && (
+            <div className="space-y-3">
+              {menuItems.map((item) => (
+                <button
+                  key={item.label}
+                  onClick={() => {
+                    if (item.label === '會員中心') {
+                      router.push('/member-center');
+                      setIsModalOpen(false);
+                    } else if (item.label === '訊息通知') {
+                      router.push('/notifications');
+                      setIsModalOpen(false);
+                    }
+                  }}
+                  className="w-full rounded-xl border border-[#fbbf24]/30 bg-[#2b1a10]/70 px-4 py-3 text-left hover:border-[#fbbf24] transition-colors"
+                >
+                  <p className="text-sm font-semibold text-[#fbbf24]">{item.label}</p>
+                  <p className="text-xs text-[#f7e7c7]/70">{item.description}</p>
+                </button>
+              ))}
+            </div>
+          )}
         </Modal>
       )}
     </>

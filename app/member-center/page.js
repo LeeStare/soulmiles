@@ -17,6 +17,7 @@ export default function MemberCenterPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [deletingFriendId, setDeletingFriendId] = useState(null);
 
   // 如果未登入，導向首頁
   useEffect(() => {
@@ -134,6 +135,37 @@ export default function MemberCenterPage() {
     } catch (error) {
       console.error('發送好友請求失敗:', error);
       alert('發送好友請求失敗，請稍後再試');
+    }
+  };
+
+  const handleDeleteFriend = async (friendId) => {
+    if (!confirm('確定要刪除此好友嗎？')) {
+      return;
+    }
+
+    setDeletingFriendId(friendId);
+    try {
+      const response = await fetch('/api/friends/delete', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ friendId }),
+      });
+
+      if (response.ok) {
+        // 重新載入好友列表
+        await loadFriends();
+        alert('好友已刪除');
+      } else {
+        const error = await response.json();
+        alert(error.error || '刪除好友失敗');
+      }
+    } catch (error) {
+      console.error('刪除好友失敗:', error);
+      alert('刪除好友失敗，請稍後再試');
+    } finally {
+      setDeletingFriendId(null);
     }
   };
 
@@ -290,6 +322,14 @@ export default function MemberCenterPage() {
                       ID: {getLastFiveDigits(friend.friendUser?.id)}
                     </p>
                   </div>
+                  <button
+                    onClick={() => handleDeleteFriend(friend.friendUser?.id)}
+                    disabled={deletingFriendId === friend.friendUser?.id}
+                    className="px-3 py-1 bg-red-600/20 border border-red-500/50 text-red-400 rounded text-sm font-semibold hover:bg-red-600/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="刪除好友"
+                  >
+                    {deletingFriendId === friend.friendUser?.id ? '刪除中...' : '刪除'}
+                  </button>
                 </div>
               ))
             ) : (
