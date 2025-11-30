@@ -5,6 +5,9 @@ import { NextResponse } from 'next/server';
  * API 文件：https://data.gov.tw/dataset/7777
  */
 
+// 標記為動態路由，因為使用了 request.url
+export const dynamic = 'force-dynamic';
+
 // 縣市名稱對應到觀光署 API 的區域代碼
 const CITY_MAPPING = {
   'Taipei': 'Taipei',
@@ -169,7 +172,8 @@ async function fetchTouristAttractions(cityName) {
  */
 export async function GET(request) {
   try {
-    const { searchParams } = new URL(request.url);
+    // 使用 Next.js 提供的 nextUrl 來獲取查詢參數，避免使用 request.url
+    const { searchParams } = request.nextUrl;
     const city = searchParams.get('city');
 
     if (!city) {
