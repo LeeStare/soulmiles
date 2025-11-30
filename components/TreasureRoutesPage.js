@@ -3,7 +3,6 @@
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from './Header';
-import SoulIndicator from './SoulIndicator';
 import LoadingAnimation from './LoadingAnimation';
 
 const ROUTE_BG = '/images/routes/route-bg.jpg';
@@ -61,7 +60,6 @@ const heroSlides = [
 export default function TreasureRoutesPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
-  const [soulLevel] = useState(74);
   const [activeIndex, setActiveIndex] = useState(1);
   const [touchStartX, setTouchStartX] = useState(null);
 
@@ -125,11 +123,11 @@ export default function TreasureRoutesPage() {
             <h1 className="route-title route-title--centered">藏寶圖尋蹤 · Arcane Route</h1>
           </div>
           <div className="route-hero-visual">
+            {/* 閃爍的藍色光環 - 放在容器外層 */}
+            <div className="route-hero-visual__glow route-hero-visual__glow--outer" />
+            <div className="route-hero-visual__glow route-hero-visual__glow--middle" />
             <div className="route-hero-visual__inner">
               <img src={HERO_IMAGE} alt="占星師" className="route-hero-visual__image" />
-              <div className="route-hero-visual__indicator">
-                <SoulIndicator soulLevel={soulLevel} />
-              </div>
             </div>
           </div>
         </section>
