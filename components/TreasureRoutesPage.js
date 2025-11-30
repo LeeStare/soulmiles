@@ -3,7 +3,6 @@
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from './Header';
-import LoadingAnimation from './LoadingAnimation';
 
 const ROUTE_BG = '/images/routes/route-bg.jpg';
 const HERO_IMAGE = '/images/routes/hero-oracle.jpg';
@@ -59,7 +58,6 @@ const heroSlides = [
 
 export default function TreasureRoutesPage() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(1);
   const [touchStartX, setTouchStartX] = useState(null);
 
@@ -97,12 +95,6 @@ export default function TreasureRoutesPage() {
     }
     setTouchStartX(null);
   };
-
-  const handleLoadingComplete = () => setIsLoading(false);
-
-  if (isLoading) {
-    return <LoadingAnimation onComplete={handleLoadingComplete} />;
-  }
 
   return (
     <div className="route-page text-[#f7e7c7]">
@@ -177,8 +169,8 @@ export default function TreasureRoutesPage() {
                         <div className="route-card__body">
                           <p className="route-card__badge">SoulMiles</p>
                           <h3 className="route-card__title route-card__title--centered">{slide.title}</h3>
-                          <p className="route-card__summary">{slide.mantra}</p>
                         </div>
+                        <p className="route-card__summary">{slide.mantra}</p>
                         <p className="route-card__description">
                           {slide.summary}
                         </p>

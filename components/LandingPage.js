@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from './Header';
-import SoulIndicator from './SoulIndicator';
 import LoadingAnimation from './LoadingAnimation';
 
 /**
@@ -12,7 +11,6 @@ import LoadingAnimation from './LoadingAnimation';
  */
 export default function LandingPage() {
   const router = useRouter();
-  const [soulLevel] = useState(50);
   const [isLoading, setIsLoading] = useState(true);
 
   const handleLoadingComplete = () => {
@@ -95,24 +93,21 @@ export default function LandingPage() {
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center w-full max-w-md overflow-hidden min-h-0 py-2">
-          <div className="relative mb-1 sm:mb-2 animate-float scale-75 sm:scale-100">
-            <svg width="200" height="200" viewBox="0 0 200 200" className="drop-shadow-2xl">
-              <circle cx="100" cy="100" r="95" fill="none" stroke="rgba(167, 139, 250, 0.3)" strokeWidth="2" strokeDasharray="5,5" />
-              <circle cx="100" cy="100" r="85" fill="none" stroke="rgba(107, 70, 193, 0.4)" strokeWidth="1" />
-              <circle cx="100" cy="100" r="75" fill="rgba(10, 10, 26, 0.8)" stroke="rgba(167, 139, 250, 0.5)" strokeWidth="3" />
-              <line x1="100" y1="100" x2="100" y2="40" stroke="rgba(251, 191, 36, 0.8)" strokeWidth="3" strokeLinecap="round" />
-              <line x1="100" y1="100" x2="100" y2="160" stroke="rgba(107, 70, 193, 0.6)" strokeWidth="2" strokeLinecap="round" />
-              <text x="100" y="30" textAnchor="middle" fill="rgba(167, 139, 250, 0.8)" fontSize="16" fontWeight="bold">N</text>
-              <text x="100" y="185" textAnchor="middle" fill="rgba(107, 70, 193, 0.6)" fontSize="14">S</text>
-              <text x="30" y="105" textAnchor="middle" fill="rgba(167, 139, 250, 0.6)" fontSize="14">W</text>
-              <text x="170" y="105" textAnchor="middle" fill="rgba(167, 139, 250, 0.6)" fontSize="14">E</text>
-              <circle cx="100" cy="100" r="5" fill="rgba(167, 139, 250, 0.8)" />
-              <path d="M 100 35 L 95 50 L 100 45 L 105 50 Z" fill="rgba(251, 191, 36, 0.9)" />
-            </svg>
-          </div>
-
-          <div className="mb-0 sm:mb-2">
-            <SoulIndicator soulLevel={soulLevel} />
+          {/* Banner 圖片位置 - 請將圖片放在 public/images/banner/landing-banner.jpg */}
+          <div className="relative w-full max-w-md mb-4">
+            <img 
+              src="/images/banner/landing-banner.jpg" 
+              alt="SoulMiles Banner" 
+              className="w-full h-auto rounded-2xl shadow-2xl"
+              onError={(e) => {
+                // 如果圖片不存在，顯示佔位符
+                e.target.style.display = 'none';
+                e.target.nextSibling.style.display = 'block';
+              }}
+            />
+            <div className="hidden w-full h-64 bg-gradient-to-br from-gothic-purple/20 to-mist-blue/20 rounded-2xl border border-soul-glow/30 flex items-center justify-center">
+              <p className="text-soul-glow/50 text-sm">請將 banner 圖片放在: public/images/banner/landing-banner.jpg</p>
+            </div>
           </div>
         </div>
 
