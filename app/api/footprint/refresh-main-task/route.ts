@@ -275,14 +275,28 @@ export async function POST(request: NextRequest) {
     }
 
     // 檢查用戶當前的任務總數（7天內的任務）
-    // 包括：1. 分配給用戶的主要任務 2. 用戶有 UserTask 關聯的任務（包括臨時任務）
-    const userTasks = await prisma.userTask.findMany({
+    // 包括：1. 分配給用戶的主要任務（通過 assignedUserId） 2. 用戶有 UserTask 關聯的任務（包括臨時任務）
+    const userMainTasks = await prisma.task.findMany({
+      where: {
+        isMainTask: true,
+        assignedUserId: userId,
+        Create_time: {
+          gte: sevenDaysAgo,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    const userTemporaryTasks = await prisma.userTask.findMany({
       where: {
         user_id: userId,
         task: {
           Create_time: {
             gte: sevenDaysAgo,
           },
+          isTemporary: true,
         },
       },
       select: {
@@ -290,9 +304,10 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const currentTaskCount = userTasks.length;
+    // 計算用戶可見的任務總數（主要任務 + 臨時任務）
+    const currentTaskCount = userMainTasks.length + userTemporaryTasks.length;
 
-    console.log('[refresh-main-task] 當前任務總數:', currentTaskCount);
+    console.log('[refresh-main-task] 當前任務總數 (主要任務:', userMainTasks.length, '臨時任務:', userTemporaryTasks.length, '總計:', currentTaskCount, ')');
 
     // 檢查用戶是否已有今天的主要任務
     const existingMainTask = await prisma.task.findFirst({
@@ -323,17 +338,15 @@ export async function POST(request: NextRequest) {
     const tasksNeeded = Math.max(0, 3 - currentTaskCount);
     console.log('[refresh-main-task] 需要生成的任務數量:', tasksNeeded);
 
-    // 如果今天的主要任務已存在，但任務總數少於3個，仍然需要生成額外任務
-    // 但主要任務每天只能有一個，所以我們只生成一個（如果今天的主要任務不存在）
-    if (existingMainTask && tasksNeeded > 0) {
-      console.log('[refresh-main-task] 今天的主要任務已存在，但任務總數少於3個，無法生成更多主要任務');
+    // 如果不需要生成任務，直接返回
+    if (tasksNeeded === 0) {
+      console.log('[refresh-main-task] 無需生成新任務');
       return NextResponse.json({
         success: true,
         task: existingMainTask,
         refreshed: false,
-        message: '今天的主要任務已存在，但任務總數少於3個（需要臨時任務或其他任務來補充）',
+        message: '任務總數已達標，無需生成新任務',
         currentTaskCount,
-        tasksNeeded: tasksNeeded,
       });
     }
 
@@ -399,12 +412,12 @@ export async function POST(request: NextRequest) {
       const distanceBonus = Math.floor(selectedAttraction.distance / 1000) * 5; // 每公里 +5 幣
       const coinReward = Math.min(baseReward + distanceBonus, 200); // 最高 200 幣
 
-      // 第一個任務是主要任務，其他是額外任務（也標記為主要任務，但用於補充）
-      const isMainTask = i === 0;
+      // 所有自動生成的任務都標記為主要任務
+      const isMainTask = true;
 
-      // 如果是第一個任務，刪除用戶的舊主要任務（如果存在且不是今天的）
-      if (isMainTask) {
-        console.log('[refresh-main-task] 刪除舊的主要任務');
+      // 如果今天的主要任務不存在，且這是第一個要生成的任務，刪除用戶的舊主要任務（非今天的）
+      if (i === 0 && !existingMainTask) {
+        console.log('[refresh-main-task] 刪除舊的主要任務（非今天的）');
         await prisma.task.deleteMany({
           where: {
             isMainTask: true,
