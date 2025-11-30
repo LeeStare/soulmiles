@@ -29,26 +29,31 @@ export default function InteractiveFlipBook({ records, onRecordClick }: Interact
   const [currentPage, setCurrentPage] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [flipDirection, setFlipDirection] = useState<'left' | 'right' | null>(null);
+  const [flipProgress, setFlipProgress] = useState(0);
   const bookRef = useRef<HTMLDivElement>(null);
+  const x = useMotionValue(0);
 
   // 總頁數（封面 + 內容頁）
-  const totalPages = records.length + 1;
+  // 注意：currentPage 從 0 開始（0 = 封面，1+ = 內容頁）
+  const totalPages = records.length + 1; // 封面(1) + 內容頁(records.length)
 
   // 處理拖曳結束
   const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     setIsDragging(false);
+    setFlipProgress(0);
+    x.set(0);
     const threshold = 80; // 拖曳閾值
 
     if (info.offset.x > threshold && currentPage > 0) {
       // 向右拖曳，翻到上一頁
       setCurrentPage(currentPage - 1);
       setFlipDirection('right');
-      setTimeout(() => setFlipDirection(null), 600);
+      setTimeout(() => setFlipDirection(null), 800);
     } else if (info.offset.x < -threshold && currentPage < totalPages - 1) {
       // 向左拖曳，翻到下一頁
       setCurrentPage(currentPage + 1);
       setFlipDirection('left');
-      setTimeout(() => setFlipDirection(null), 600);
+      setTimeout(() => setFlipDirection(null), 800);
     } else {
       setFlipDirection(null);
     }
@@ -57,15 +62,51 @@ export default function InteractiveFlipBook({ records, onRecordClick }: Interact
   // 點擊翻頁（作為拖曳的備選方案）
   const handlePageClick = (direction: 'prev' | 'next') => {
     if (direction === 'prev' && currentPage > 0) {
-      setCurrentPage(currentPage - 1);
-      setFlipDirection('right');
-      setTimeout(() => setFlipDirection(null), 600);
+      // 觸發動畫效果
+      setFlipProgress(0);
+      setIsDragging(true);
+      // 模擬翻頁動畫
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += 0.05;
+        if (progress >= 1) {
+          progress = 1;
+          clearInterval(interval);
+          setCurrentPage(currentPage - 1);
+          setFlipDirection('right');
+          setIsDragging(false);
+          setFlipProgress(0);
+          setTimeout(() => setFlipDirection(null), 100);
+        } else {
+          setFlipProgress(progress);
+        }
+      }, 40); // 每 40ms 更新一次，總共約 800ms
     } else if (direction === 'next' && currentPage < totalPages - 1) {
-      setCurrentPage(currentPage + 1);
-      setFlipDirection('left');
-      setTimeout(() => setFlipDirection(null), 600);
+      // 觸發動畫效果
+      setFlipProgress(0);
+      setIsDragging(true);
+      // 模擬翻頁動畫
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += 0.05;
+        if (progress >= 1) {
+          progress = 1;
+          clearInterval(interval);
+          setCurrentPage(currentPage + 1);
+          setFlipDirection('left');
+          setIsDragging(false);
+          setFlipProgress(0);
+          setTimeout(() => setFlipDirection(null), 100);
+        } else {
+          setFlipProgress(progress);
+        }
+      }, 40); // 每 40ms 更新一次，總共約 800ms
     }
   };
+
+  // 將拖曳距離轉換為翻頁角度
+  const rotateY = useTransform(x, [-200, 200], [180, -180]);
+  const scaleX = useTransform(x, [-200, 0, 200], [1, 0.95, 1]);
 
   // 封面頁
   if (currentPage === 0) {
@@ -77,19 +118,37 @@ export default function InteractiveFlipBook({ records, onRecordClick }: Interact
           drag="x"
           dragConstraints={{ left: 0, right: 0 }}
           dragElastic={0.2}
-          onDragStart={() => setIsDragging(true)}
+          onDragStart={() => {
+            setIsDragging(true);
+            setFlipProgress(0);
+          }}
+          onDrag={(event, info) => {
+            // 計算拖曳進度（用於即時翻頁效果）
+            // 向左拖曳（負值）時翻到下一頁
+            if (info.offset.x < 0) {
+              const progress = Math.abs(info.offset.x) / 200; // 200px 為完整翻頁距離
+              setFlipProgress(Math.min(progress, 1));
+            } else {
+              setFlipProgress(0);
+            }
+          }}
           onDragEnd={handleDragEnd}
           animate={{
             rotateY: flipDirection === 'left' ? -180 : flipDirection === 'right' ? 180 : 0,
             scale: isDragging ? 0.98 : 1,
           }}
           transition={{ 
-            duration: 0.6, 
-            ease: [0.4, 0, 0.2, 1],
-            rotateY: { duration: 0.6 }
+            duration: 0.8, 
+            ease: [0.25, 0.46, 0.45, 0.94], // 更自然的緩動曲線
+            rotateY: { duration: 0.8 },
+            scaleX: { duration: 0.8 },
+            translateX: { duration: 0.8 }
           }}
           style={{
             transformStyle: 'preserve-3d',
+            x,
+            rotateY: isDragging ? rotateY : undefined,
+            scaleX: isDragging ? scaleX : undefined,
           }}
         >
           {/* 封面 - 復古世界地圖風格 */}
@@ -167,33 +226,70 @@ export default function InteractiveFlipBook({ records, onRecordClick }: Interact
 
   // 內容頁
   const record = records[currentPage - 1];
-  if (!record) return null;
+  if (!record) {
+    return null;
+  }
 
   return (
-    <div className="w-full h-[500px] sm:h-[600px] relative perspective-1000">
-      <motion.div
-        ref={bookRef}
-        className="w-full h-full relative cursor-grab active:cursor-grabbing"
-        drag="x"
-        dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={0.2}
-        onDragStart={() => setIsDragging(true)}
-        onDragEnd={handleDragEnd}
-        animate={{
-          rotateY: flipDirection === 'left' ? -180 : flipDirection === 'right' ? 180 : 0,
-          scale: isDragging ? 0.98 : 1,
-        }}
-        transition={{ 
-          duration: 0.6, 
-          ease: [0.4, 0, 0.2, 1],
-          rotateY: { duration: 0.6 }
-        }}
-        style={{
-          transformStyle: 'preserve-3d',
-        }}
-      >
-        {/* 頁面內容 */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#2d1b3d] via-[#1a1a2e] to-[#0f0a1a] rounded-lg shadow-2xl border-4 border-[#f0d9b5]/30 p-6 sm:p-8 overflow-y-auto">
+    <div className="w-full relative">
+      <div className="w-full h-[500px] sm:h-[600px] relative perspective-1000">
+        <motion.div
+          ref={bookRef}
+          className="w-full h-full relative cursor-grab active:cursor-grabbing"
+          drag="x"
+          dragConstraints={{ left: 0, right: 0 }}
+          dragElastic={0.2}
+          onDragStart={() => {
+            setIsDragging(true);
+            setFlipProgress(0);
+          }}
+          onDrag={(event, info) => {
+            // 計算拖曳進度（用於即時翻頁效果）
+            // 向左拖曳（負值）時翻到下一頁
+            if (info.offset.x < 0) {
+              const progress = Math.abs(info.offset.x) / 200; // 200px 為完整翻頁距離
+              setFlipProgress(Math.min(progress, 1));
+            } else {
+              setFlipProgress(0);
+            }
+          }}
+          onDragEnd={handleDragEnd}
+          animate={{
+            rotateY: flipDirection === 'left' ? -180 : flipDirection === 'right' ? 180 : 0,
+            scale: isDragging ? 0.98 : 1,
+          }}
+          transition={{ 
+            duration: 0.8, 
+            ease: [0.25, 0.46, 0.45, 0.94], // 更自然的緩動曲線
+            rotateY: { duration: 0.8 },
+            scaleX: { duration: 0.8 },
+            translateX: { duration: 0.8 }
+          }}
+          style={{
+            transformStyle: 'preserve-3d',
+            x,
+            rotateY: isDragging ? rotateY : undefined,
+            scaleX: isDragging ? scaleX : undefined,
+          }}
+        >
+        {/* 頁面內容 - 左頁（當前頁） */}
+        <motion.div 
+          className="absolute inset-0 bg-gradient-to-br from-[#2d1b3d] via-[#1a1a2e] to-[#0f0a1a] rounded-lg shadow-2xl border-4 border-[#f0d9b5]/30 p-6 sm:p-8 overflow-y-auto"
+          animate={{
+            rotateY: isDragging && flipProgress > 0 ? -flipProgress * 180 : 0,
+            scaleX: isDragging && flipProgress > 0 ? 1 - flipProgress * 0.3 : 1, // 彎曲效果
+            translateX: isDragging && flipProgress > 0 ? -flipProgress * 20 : 0, // 翻頁時的位移
+          }}
+          style={{
+            transformStyle: 'preserve-3d',
+            backfaceVisibility: 'hidden',
+            transformOrigin: 'right center', // 從右邊翻到左邊
+            zIndex: isDragging && flipProgress > 0.5 ? 1 : 2,
+            boxShadow: isDragging && flipProgress > 0 
+              ? `inset ${flipProgress * 20}px 0 ${flipProgress * 30}px rgba(0, 0, 0, ${0.3 + flipProgress * 0.4})`
+              : 'none',
+          }}
+        >
           {/* 頁面裝飾 */}
           <div className="absolute inset-4 border-2 border-[#6b46c1]/20 rounded-lg" />
 
@@ -259,31 +355,76 @@ export default function InteractiveFlipBook({ records, onRecordClick }: Interact
               </p>
             </div>
           </div>
+        </motion.div>
 
-          {/* 翻頁控制 */}
-          <div className="absolute bottom-4 left-0 right-0 flex justify-between items-center px-4 sm:px-8">
-            <button
-              onClick={() => handlePageClick('prev')}
-              disabled={currentPage === 1}
-              className="px-4 py-2 rounded-lg bg-[#6b46c1]/80 text-[#f7e7c7] hover:bg-[#5b21b6] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
-            >
-              ← 上一頁
-            </button>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-[#f7e7c7]/70">
-                {currentPage} / {totalPages}
-              </span>
-            </div>
-            <button
-              onClick={() => handlePageClick('next')}
-              disabled={currentPage >= totalPages - 1}
-              className="px-4 py-2 rounded-lg bg-[#fbbf24] text-[#1b0e07] hover:bg-[#f59e0b] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
-            >
-              {currentPage >= totalPages - 1 ? '封底' : '下一頁 →'}
-            </button>
-          </div>
+        {/* 右頁（下一頁的預覽，翻頁時顯示） */}
+        {currentPage < totalPages - 1 && (
+          <motion.div
+            className="absolute inset-0 bg-gradient-to-br from-[#2d1b3d] via-[#1a1a2e] to-[#0f0a1a] rounded-lg shadow-2xl border-4 border-[#f0d9b5]/30"
+            animate={{
+              rotateY: isDragging && flipProgress > 0 ? -180 + flipProgress * 180 : -180,
+              scaleX: isDragging && flipProgress > 0 ? 0.7 + flipProgress * 0.3 : 1, // 彎曲效果
+              translateX: isDragging && flipProgress > 0 ? (1 - flipProgress) * 20 : 0, // 翻頁時的位移
+            }}
+            style={{
+              transformStyle: 'preserve-3d',
+              backfaceVisibility: 'hidden',
+              transformOrigin: 'right center', // 從右邊翻到左邊
+              zIndex: isDragging && flipProgress > 0.5 ? 2 : 1,
+              boxShadow: isDragging && flipProgress > 0 
+                ? `${flipProgress * 15}px 0 ${flipProgress * 25}px rgba(0, 0, 0, ${0.2 + flipProgress * 0.3})`
+                : 'none',
+            }}
+          >
+            {/* 下一頁的預覽內容 */}
+            {records[currentPage] && (
+              <div className="absolute inset-0 p-6 sm:p-8 overflow-y-auto">
+                <div className="mb-4">
+                  <h2 className="text-2xl sm:text-3xl font-bold text-[#fbbf24] mb-2" style={{ fontFamily: 'serif' }}>
+                    {records[currentPage].name || '未命名地點'}
+                  </h2>
+                  <div className="h-1 w-20 bg-gradient-to-r from-[#fbbf24] to-transparent mb-4" />
+                </div>
+                {records[currentPage].pictures && records[currentPage].pictures.length > 0 && (
+                  <div className="rounded-lg overflow-hidden border-2 border-[#f0d9b5]/20 opacity-50">
+                    {records[currentPage].pictures[0]?.picture && (
+                      <img
+                        src={records[currentPage].pictures[0].picture}
+                        alt="下一頁預覽"
+                        className="w-full h-auto max-h-48 object-cover"
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </motion.div>
+        )}
+        </motion.div>
+      </div>
+
+      {/* 翻頁控制 - 移到書下面 */}
+      <div className="mt-4 flex justify-between items-center px-4 sm:px-8">
+        <button
+          onClick={() => handlePageClick('prev')}
+          disabled={currentPage === 1}
+          className="px-4 py-2 rounded-lg bg-[#6b46c1]/80 text-[#f7e7c7] hover:bg-[#5b21b6] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+        >
+          ← 上一頁
+        </button>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-[#f7e7c7]/70">
+            {currentPage + 1} / {totalPages}
+          </span>
         </div>
-      </motion.div>
+        <button
+          onClick={() => handlePageClick('next')}
+          disabled={currentPage >= totalPages - 1}
+          className="px-4 py-2 rounded-lg bg-[#fbbf24] text-[#1b0e07] hover:bg-[#f59e0b] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+        >
+          {currentPage >= totalPages - 1 ? '封底' : '下一頁 →'}
+        </button>
+      </div>
     </div>
   );
 }

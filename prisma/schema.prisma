@@ -91,11 +91,11 @@ model Friend {
 model Notification {
   id          String   @id @default(uuid())
   user_id     String
-  type        String   // friend_request, friend_accepted, etc.
+  type        String // friend_request, friend_accepted, etc.
   title       String
   message     String?  @db.Text
   isRead      Boolean  @default(false)
-  related_id  String?  // 相關的 ID（如好友請求的 Friend ID）
+  related_id  String? // 相關的 ID（如好友請求的 Friend ID）
   Create_time DateTime @default(now())
   Update_time DateTime @default(now()) @updatedAt
   user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -137,22 +137,24 @@ model FootprintTransport {
 }
 
 model Task {
-  id          String     @id @default(uuid())
-  name        String?
-  description String?    @db.Text
-  coordinate  String?    @db.Text
-  Coin        Int        @default(0)
-  isTemporary Boolean    @default(false) // 是否為臨時任務（由好友足跡產生）
-  isMainTask  Boolean    @default(false) // 是否為主要任務（每日任務）
-  assignedUserId String? // 指派給的用戶ID（主要任務專屬）
-  refreshDate DateTime?  // 任務刷新日期（用於判斷是否需要刷新）
-  relatedUserId String?  // 相關的使用者 ID（如果是臨時任務，記錄是哪位好友的足跡）
+  id                 String     @id @default(uuid())
+  name               String?
+  description        String?    @db.Text
+  coordinate         String?    @db.Text
+  Coin               Int        @default(0)
+  isTemporary        Boolean    @default(false) // 是否為臨時任務（由好友足跡產生）
+  isMainTask         Boolean    @default(false) // 是否為主要任務（每日任務）
+  isShared           Boolean    @default(false) // 是否為共享任務（軟體擁有者新增，所有用戶可見）
+  assignedUserId     String? // 指派給的用戶ID（主要任務專屬）
+  refreshDate        DateTime? // 任務刷新日期（用於判斷是否需要刷新）
+  relatedUserId      String? // 相關的使用者 ID（如果是臨時任務，記錄是哪位好友的足跡）
   relatedMapRecordId String? // 相關的 MapRecord ID
-  Create_time DateTime   @default(now())
-  Update_time DateTime   @default(now()) @updatedAt
-  userTasks   UserTask[]
-  
+  Create_time        DateTime   @default(now())
+  Update_time        DateTime   @default(now()) @updatedAt
+  userTasks          UserTask[]
+
   @@index([assignedUserId, isMainTask], map: "Task_assignedUserId_isMainTask_idx")
+  @@index([isShared], map: "Task_isShared_idx")
   @@map("Task")
 }
 
@@ -202,7 +204,7 @@ model MapRecordPicture {
 model TwGeoJson {
   id          String   @id @default(uuid())
   CountyID    String?  @map("CountyID") // 縣市ID
-  Name        String?  // 縣市名稱
+  Name        String? // 縣市名稱
   Area        String?  @db.LongText // GeoJSON 邊界資料
   Create_time DateTime @default(now())
   Update_time DateTime @default(now()) @updatedAt

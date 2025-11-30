@@ -75,16 +75,29 @@ export default function QuestTab() {
         }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.refreshed) {
-          console.log('主要任務已刷新');
-          // 刷新任務列表
-          await fetchTasks();
-        }
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('刷新主要任務失敗:', response.status, errorText);
+        // 即使失敗也嘗試獲取任務列表
+        await fetchTasks();
+        return;
+      }
+
+      const data = await response.json();
+      console.log('主要任務刷新回應:', data);
+      
+      // 無論是否刷新，都重新獲取任務列表
+      await fetchTasks();
+      
+      if (data.refreshed) {
+        console.log('主要任務已刷新');
+      } else if (data.message) {
+        console.log('主要任務狀態:', data.message);
       }
     } catch (error) {
       console.error('檢查主要任務失敗:', error);
+      // 即使失敗也嘗試獲取任務列表
+      await fetchTasks();
     }
   };
 

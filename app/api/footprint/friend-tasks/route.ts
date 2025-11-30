@@ -158,6 +158,7 @@ export async function POST(request: Request) {
             coordinate: record.coordinate,
             Coin: 10,
             isTemporary: true,
+            isShared: false, // 確保不是共享任務
             relatedUserId: record.user_id,
             relatedMapRecordId: record.id,
           },
