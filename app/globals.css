@@ -309,7 +309,7 @@
     background-size: cover;
     background-position: center;
     opacity: 0.35;
-    filter: sepia(0.5) saturate(0.7);
+    filter: sepia(0.5) saturate(0.7) blur(8px);
     z-index: 0;
   }
 

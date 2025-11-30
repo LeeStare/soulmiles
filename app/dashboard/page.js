@@ -356,7 +356,12 @@ export default function DashboardPage() {
 
   return (
     <div className="route-page text-[#f7e7c7]">
-      <div className="route-page__bg" style={{ backgroundImage: 'url(/images/routes/route-bg.jpg)' }} />
+      <div 
+        className="route-page__bg" 
+        style={{ 
+          backgroundImage: 'url(/images/maps/gothic_map_02.jpg)',
+        }} 
+      />
       <div className="route-page__veil" />
 
       <div className="route-page__content">
