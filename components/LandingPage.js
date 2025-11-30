@@ -97,29 +97,22 @@ export default function LandingPage() {
       </div>
 
       <div className="relative z-10 w-full h-full min-h-screen flex flex-col items-center justify-between px-4 py-4 sm:py-6 overflow-hidden">
-        <div className="w-full flex-shrink-0 mb-2 sm:mb-4">
+        <div className="w-full flex-shrink-0">
           <Header />
         </div>
         
-        <div className="w-full text-center flex-shrink-0 mt-2 sm:mt-4">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-1 sm:mb-2 text-transparent bg-clip-text bg-gradient-to-r from-soul-glow via-gothic-purple to-treasure-gold drop-shadow-[0_0_10px_rgba(167,139,250,0.5)]">
-            SoulMiles
-          </h1>
+        <div className="w-full text-center flex-shrink-0">
           {/* 世界頻道輪播訊息 */}
-          <div className="flex items-center justify-center mt-8 sm:mt-10">
+          <div className="flex items-center justify-center">
             <WorldChannelTicker />
-          </div>
-          {/* 迷霧探索百分比指示器 */}
-          <div className="mb-0 sm:mb-2">
-            <SoulIndicator soulLevel={mistPercentage} />
           </div>
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center w-full max-w-md overflow-hidden min-h-0 py-2">
-          {/* Banner 圖片位置 - 請將圖片放在 public/images/banner/landing-banner.jpg */}
+          {/* Banner 圖片位置 - 請將圖片放在 public/images/banner/landing-banner-removebg.png */}
           <div className="relative w-full max-w-md mb-4">
             <img 
-              src="/images/banner/landing-banner.jpg" 
+              src="/images/banner/landing-banner-removebg.png" 
               alt="SoulMiles Banner" 
               className="w-full h-auto rounded-2xl shadow-2xl"
               onError={(e) => {
@@ -129,8 +122,12 @@ export default function LandingPage() {
               }}
             />
             <div className="hidden w-full h-64 bg-gradient-to-br from-gothic-purple/20 to-mist-blue/20 rounded-2xl border border-soul-glow/30 flex items-center justify-center">
-              <p className="text-soul-glow/50 text-sm">請將 banner 圖片放在: public/images/banner/landing-banner.jpg</p>
+              <p className="text-soul-glow/50 text-sm">請將 banner 圖片放在: public/images/banner/landing-banner-removebg.png</p>
             </div>
+          </div>
+          {/* 迷霧探索百分比指示器 */}
+          <div className="mb-0 sm:mb-2">
+            <SoulIndicator soulLevel={mistPercentage} />
           </div>
         </div>
 
