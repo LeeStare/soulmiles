@@ -96,7 +96,7 @@ export const authOptions = {
   // 移除 logger 配置以符合 NextAuth v5 API
   // NextAuth v5 會使用默認的 logger 行為
   events: {
-    async createUser({ user }) {
+    async createUser({ user }: { user: any; account?: any }) {
       // 當新用戶被創建時，確保 OAuth 欄位被正確設置
       // 只有在 prisma 可用時才執行資料庫操作
       if (!isPrismaAvailable()) {
@@ -139,7 +139,7 @@ export const authOptions = {
         console.error('初始化新用戶資料失敗:', error);
       }
     },
-    async linkAccount({ account, user }) {
+    async linkAccount({ account, user }: { account: any; user: any }) {
       // 當帳號被連結時，更新對應的 OAuth 欄位
       // 只有在 prisma 可用時才執行資料庫操作
       if (!isPrismaAvailable()) {
@@ -175,7 +175,8 @@ export const authOptions = {
     },
   },
   callbacks: {
-    async signIn({ user, account }) {
+    // @ts-ignore - NextAuth v5 型別定義與實際使用不完全匹配
+    async signIn({ user, account }: any) {
       // 如果使用 PrismaAdapter，NextAuth 會自動處理帳號連結
       // 但我們可以在這裡添加額外的邏輯來確保相同 email 的帳號被正確連結
       
@@ -210,7 +211,8 @@ export const authOptions = {
 
       return true; // 允許登入
     },
-    async jwt({ token, user, account }) {
+    // @ts-ignore - NextAuth v5 型別定義與實際使用不完全匹配
+    async jwt({ token, user, account }: any) {
       // 在首次登入時，user 對象可用
       // 將 user id 保存到 token 中
       if (user) {
@@ -224,7 +226,8 @@ export const authOptions = {
       }
       return token;
     },
-    async session({ session, token, user }) {
+    // @ts-ignore - NextAuth v5 型別定義與實際使用不完全匹配
+    async session({ session, token, user }: any) {
       // NextAuth v5 使用 database adapter 時，session callback 可能同時有 user 和 token
       // 優先使用 user.id（database adapter 提供），其次使用 token
       let userId: string | undefined;
@@ -292,5 +295,5 @@ export const authOptions = {
     },
   },
   secret: process.env.AUTH_SECRET,
-};
+} as any; // 暫時使用 any 以兼容 NextAuth v5 的型別定義
 

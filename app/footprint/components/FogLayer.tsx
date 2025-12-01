@@ -155,7 +155,7 @@ export default function FogLayer({ exploredGridIds }: FogLayerProps) {
           opacity: 0.4,
         }}
         interactive={false}
-        onEachFeature={(feature, layer) => {
+        onEachFeature={(feature: any, layer: any) => {
           if (typeof window !== 'undefined') {
             setTimeout(() => {
               const pathElement = (layer as any)._path as SVGPathElement;

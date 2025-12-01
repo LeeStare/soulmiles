@@ -8,6 +8,7 @@ interface MapRecord {
   name: string | null;
   description: string | null;
   coordinate: string | null;
+  Create_time: string;
   pictures: MapRecordPicture[];
 }
 

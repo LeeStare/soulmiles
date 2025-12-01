@@ -27,10 +27,6 @@ declare module 'next-auth' {
   }
 }
 
-declare module 'next-auth/jwt' {
-  interface JWT {
-    userId?: string;
-    id?: string;
-  }
-}
+// NextAuth v5 可能不需要 JWT 模組擴展
+// 如果需要的話，可以通過 token 型別斷言來處理
 

@@ -30,7 +30,17 @@ export default async function MyMapTabData() {
     return <MyMapTabClient records={[]} />;
   }
 
-  let records = [];
+  let records: Array<{
+    id: string;
+    name: string | null;
+    description: string | null;
+    coordinate: string | null;
+    Create_time: string;
+    pictures: Array<{
+      id: string;
+      picture: string | null;
+    }>;
+  }> = [];
 
   try {
     const mapRecords = await prisma.mapRecord.findMany({
