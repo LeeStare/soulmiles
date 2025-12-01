@@ -22,23 +22,13 @@ export async function GET(request) {
       return NextResponse.json({ error: '使用者不存在' }, { status: 404 });
     }
 
-    // 取得已接受的好友關係（雙向）
+    // 取得已接受的好友關係（只查詢 user_id = currentUser.id 的記錄，避免重複）
     const friends = await prisma.friend.findMany({
       where: {
-        OR: [
-          { user_id: user.id, status: 'accepted' },
-          { friend_id: user.id, status: 'accepted' },
-        ],
+        user_id: user.id,
+        status: 'accepted',
       },
       include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            UserName: true,
-            image: true,
-          },
-        },
         friendUser: {
           select: {
             id: true,
@@ -50,10 +40,10 @@ export async function GET(request) {
       },
     });
 
-    // 轉換為統一格式（總是顯示好友的資訊）
+    // 轉換為統一格式
     const friendsList = friends.map((friend) => ({
       id: friend.id,
-      friendUser: friend.user_id === user.id ? friend.friendUser : friend.user,
+      friendUser: friend.friendUser,
     }));
 
     return NextResponse.json({ friends: friendsList });
