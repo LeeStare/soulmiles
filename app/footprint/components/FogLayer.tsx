@@ -37,7 +37,10 @@ export default function FogLayer({ exploredGridIds }: FogLayerProps) {
       setFogLayerReady(true);
     };
 
+    // 初始更新
     updateBounds();
+    
+    // 監聽地圖移動和縮放結束事件（適度更新，避免過度渲染）
     map.on('moveend', updateBounds);
     map.on('zoomend', updateBounds);
 
@@ -144,12 +147,21 @@ export default function FogLayer({ exploredGridIds }: FogLayerProps) {
     }
   }, []);
 
+  // 生成一個唯一的 key，包含地圖狀態和探索狀態，確保縮放時會重新渲染
+  // 必須在條件返回之前調用 useMemo（React Hooks 規則）
+  const geoJsonKey = useMemo(() => {
+    if (!mapBounds || mapZoom === null) return `fog-${exploredGridIds.size}`;
+    // 使用邊界和縮放級別生成 key，確保當地圖變化時會重新渲染
+    const boundsKey = `${mapBounds.north.toFixed(2)}-${mapBounds.south.toFixed(2)}-${mapBounds.east.toFixed(2)}-${mapBounds.west.toFixed(2)}`;
+    return `fog-${boundsKey}-${mapZoom}-${exploredGridIds.size}-${fogGeoJSON?.features.length || 0}`;
+  }, [mapBounds, mapZoom, exploredGridIds.size, fogGeoJSON?.features.length]);
+
   if (!fogLayerReady || !fogGeoJSON || fogGeoJSON.features.length === 0) return null;
 
   return (
     <>
       <GeoJSON
-        key={`fog-${exploredGridIds.size}`}
+        key={geoJsonKey}
         data={fogGeoJSON}
         style={{
           fillColor: '#fbbf24',

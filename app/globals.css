@@ -350,6 +350,26 @@
     color: #a78bfa !important;
   }
 
+  /* 縮放比例尺樣式 */
+  .leaflet-control-scale {
+    background: rgba(10, 10, 26, 0.85) !important;
+    border: 2px solid rgba(167, 139, 250, 0.3) !important;
+    border-radius: 4px !important;
+    padding: 5px 8px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
+  }
+
+  .leaflet-control-scale-line {
+    background: rgba(10, 10, 26, 0.85) !important;
+    border: 2px solid rgba(167, 139, 250, 0.3) !important;
+    border-top: none !important;
+    color: #f7e7c7 !important;
+    font-size: 11px !important;
+    padding: 2px 5px !important;
+    white-space: nowrap !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
+  }
+
   /* 自訂標記樣式 */
   .custom-user-marker,
   .custom-visited-marker {

@@ -27,6 +27,11 @@ const Popup = dynamic(
   { ssr: false }
 ) as React.ComponentType<any>;
 
+const ScaleControl = dynamic(
+  () => import('react-leaflet').then((mod) => mod.ScaleControl),
+  { ssr: false }
+) as React.ComponentType<any>;
+
 // 地圖尺寸處理組件
 function MapResizeHandler() {
   useEffect(() => {
@@ -250,6 +255,15 @@ export default function FootprintMap() {
           {/* 迷霧圖層 - 顯示未探索的方塊 (延遲載入) */}
           {typeof window !== 'undefined' && mapReady && (
             <FogLayer exploredGridIds={exploredGridIds} />
+          )}
+
+          {/* 縮放比例尺 - 左下角 */}
+          {typeof window !== 'undefined' && (
+            <ScaleControl
+              position="bottomleft"
+              imperial={false}
+              metric={true}
+            />
           )}
 
           {/* 回到現在定位按鈕 */}
