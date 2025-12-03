@@ -17,6 +17,7 @@ const defaultSummaries = {
   '船難記': '沿著沉沒的航道尋找最後的求救訊號。',
   '寶藏獵人': '疾風般的節奏，逐一點亮所有藏寶標記。',
   '孤獨艦長': '全船只剩你一人，與星圖對話找到出口。',
+  '深淵挑戰者': '深入未知深淵，挑戰極限邊界，只有最勇敢的靈魂才能抵達終點。',
 };
 
 // 縣市名稱對應（從 Google Maps 查詢參數提取）
@@ -64,7 +65,7 @@ export default function TreasureMap() {
   const searchParams = useSearchParams();
 
   const mode = searchParams.get('mode') || 'random';
-  const journeyType = searchParams.get('result') || (mode === 'hard' ? '孤獨艦長' : '寶藏獵人');
+  const journeyType = searchParams.get('result') || (mode === 'hard' ? '深淵挑戰者' : '寶藏獵人');
   const location = searchParams.get('location') || '迷霧群島';
   const summary =
     searchParams.get('summary') || defaultSummaries[journeyType] || '靈魂羅盤為你標記前方。';
@@ -99,7 +100,7 @@ export default function TreasureMap() {
   };
 
   // 從 API 取得景點資料
-  const fetchAttractionForCity = async (cityName) => {
+  const fetchAttractionForCity = async (cityName, isHardMode = false) => {
     if (!cityName) return null;
     
     // 避免重複請求
@@ -108,7 +109,9 @@ export default function TreasureMap() {
     setLoadingAttractions(prev => ({ ...prev, [cityName]: true }));
     
     try {
-      const response = await fetch(`/api/tourist-attractions?city=${encodeURIComponent(cityName)}`);
+      // 如果是 hard 模式，傳遞 difficulty=hard 參數
+      const apiUrl = `/api/tourist-attractions?city=${encodeURIComponent(cityName)}${isHardMode ? '&difficulty=hard' : ''}`;
+      const response = await fetch(apiUrl);
       if (!response.ok) {
         throw new Error(`API 請求失敗: ${response.status}`);
       }
@@ -148,11 +151,18 @@ export default function TreasureMap() {
     const loadAttractions = async () => {
       setIsLoading(true); // 開始載入
       const defaultRoute = defaultItineraries[regionKey] || defaultItineraries.north;
+      const isHardMode = mode === 'hard' || journeyType === '深淵挑戰者';
+      
+      // 如果是 hard 模式，增加行程點數（讓行程更長更難）
+      const routeToLoad = isHardMode && defaultRoute.length < 5 
+        ? [...defaultRoute, ...defaultRoute.slice(0, Math.min(2, defaultRoute.length))] // 增加 2 個點
+        : defaultRoute;
+      
       const updatedRoute = await Promise.all(
-        defaultRoute.map(async (stop) => {
+        routeToLoad.map(async (stop) => {
           const cityName = extractCityFromLink(stop.link);
           if (cityName) {
-            const attraction = await fetchAttractionForCity(cityName);
+            const attraction = await fetchAttractionForCity(cityName, isHardMode);
             if (attraction) {
               return attraction;
             }
@@ -172,7 +182,7 @@ export default function TreasureMap() {
     };
 
     loadAttractions();
-  }, [regionKey]);
+  }, [regionKey, mode, journeyType]);
 
   // 如果還在載入或沒有資料，使用預設資料但不顯示
   const routePlan = isLoading || !itineraries 

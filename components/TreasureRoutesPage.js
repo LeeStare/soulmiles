@@ -49,7 +49,7 @@ const heroSlides = [
       pathname: '/treasure-map',
       query: {
         mode: 'hard',
-        result: '孤獨艦長',
+        result: '深淵挑戰者',
         location: '潘朵拉暗礁',
       },
     },

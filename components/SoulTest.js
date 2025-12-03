@@ -95,6 +95,7 @@ const journeySummaries = {
   '船難記': '追溯沉沒航線，撿拾被遺忘的靈魂碎片。',
   '寶藏獵人': '跳上疾風船隊，突襲每個標記的 X。',
   '孤獨艦長': '全船只剩你一人，與星圖對話找到出口。',
+  '深淵挑戰者': '深入未知深淵，挑戰極限邊界，只有最勇敢的靈魂才能抵達終點。',
 };
 
 function calculateResult(answers, mode = 'guide') {
@@ -132,7 +133,7 @@ function calculateResult(answers, mode = 'guide') {
   }
 
   if (mode === 'guide-hard') {
-    journeyType = '孤獨艦長';
+    journeyType = '深淵挑戰者';
   }
 
   const regionMap = {

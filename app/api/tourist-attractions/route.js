@@ -197,9 +197,27 @@ export async function GET(request) {
       );
     }
 
-    // 隨機選擇一個景點
-    const randomIndex = Math.floor(Math.random() * attractions.length);
-    const selectedAttraction = attractions[randomIndex];
+    // 檢查是否為困難模式
+    const difficulty = searchParams.get('difficulty');
+    const isHardMode = difficulty === 'hard';
+    
+    // 選擇景點的策略
+    let selectedAttraction;
+    if (isHardMode && attractions.length > 0) {
+      // 困難模式：選擇更偏遠的景點
+      // 策略 1: 從後 50% 的景點中隨機選擇（假設列表後面的景點更偏遠）
+      const startIndex = Math.floor(attractions.length * 0.5);
+      const endIndex = attractions.length;
+      const randomIndex = Math.floor(Math.random() * (endIndex - startIndex)) + startIndex;
+      selectedAttraction = attractions[randomIndex];
+      
+      // 策略 2: 如果景點有座標，選擇距離市中心更遠的（這裡簡化為選擇列表後面的）
+      // 實際可以根據座標計算距離，選擇最遠的幾個
+    } else {
+      // 普通模式：完全隨機選擇
+      const randomIndex = Math.floor(Math.random() * attractions.length);
+      selectedAttraction = attractions[randomIndex];
+    }
 
     // 格式化景點資料（根據觀光署 API 實際格式）
     const formattedAttraction = {
