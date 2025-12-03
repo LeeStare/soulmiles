@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import 'leaflet/dist/leaflet.css';
 import LocateButton from './LocateButton';
 import FogLayer from './FogLayer';
+import { coordinateToGridId } from '../../../lib/utils/gridUtils';
 
 // 動態導入地圖組件以避免 SSR 問題
 const MapContainer = dynamic(
@@ -84,25 +85,129 @@ export default function FootprintMap() {
   const [mapCenter, setMapCenter] = useState<[number, number]>(defaultCenter);
   const [mapZoom, setMapZoom] = useState(13);
 
-  // 取得使用者當前位置
+  // 追蹤當前所在的網格 ID，用於判斷是否進入新網格
+  const currentGridIdRef = useRef<string | null>(null);
+  // 追蹤位置監聽器的 ID，用於清理
+  const watchPositionIdRef = useRef<number | null>(null);
+  // 使用 ref 來追蹤最新的 exploredGridIds，避免閉包問題
+  const exploredGridIdsRef = useRef<Set<string>>(new Set());
+
+  const fetchFootprints = async () => {
+    try {
+      const response = await fetch('/api/footprint/footprints');
+      if (response.ok) {
+        const result = await response.json();
+        const data = result.success ? result.data : result;
+        setFootprints(data.footprints || []);
+      }
+    } catch (error) {
+      console.error('獲取足跡失敗:', error);
+    }
+  };
+
+  const fetchExploredGrids = useCallback(async () => {
+    try {
+      const response = await fetch('/api/footprint/explored-grids');
+      if (response.ok) {
+        const result = await response.json();
+        const data = result.success ? result.data : result;
+        const gridIds = (data.grids || []).map((g: { gridId: string }) => g.gridId) as string[];
+        const newGridIds = new Set<string>(gridIds);
+        setExploredGrids(data.grids || []);
+        setExploredGridIds(newGridIds);
+        // 更新 ref，確保位置追蹤回調能訪問最新的值
+        exploredGridIdsRef.current = newGridIds;
+      }
+    } catch (error) {
+      console.error('獲取已探索方塊失敗:', error);
+    }
+  }, []);
+
+  // 自動記錄新網格的函數
+  const recordNewGrid = useCallback(async (lat: number, lon: number) => {
+    try {
+      const response = await fetch('/api/footprint/explore-grid', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ lat, lon }),
+      });
+
+      if (response.ok) {
+        // 如果成功創建或更新，重新獲取已探索網格列表
+        await fetchExploredGrids();
+      }
+    } catch (error) {
+      console.error('自動記錄網格失敗:', error);
+    }
+  }, [fetchExploredGrids]);
+
+  // 取得使用者當前位置並開始追蹤
   useEffect(() => {
     if (typeof window !== 'undefined' && navigator.geolocation) {
+      // 先獲取一次當前位置
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
           setUserLocation([latitude, longitude]);
           setMapCenter([latitude, longitude]);
           setMapZoom(15);
+
+          // 計算當前網格 ID
+          const gridId = coordinateToGridId(latitude, longitude);
+          if (gridId) {
+            currentGridIdRef.current = gridId;
+            // 檢查是否已經探索過，如果沒有則記錄（使用 ref 獲取最新值）
+            if (!exploredGridIdsRef.current.has(gridId)) {
+              recordNewGrid(latitude, longitude);
+            }
+          }
         },
         (error) => {
           console.error('無法取得位置:', error);
           setUserLocation(defaultCenter);
         }
       );
+
+      // 開始監聽位置變化（當使用者移動時）
+      watchPositionIdRef.current = navigator.geolocation.watchPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setUserLocation([latitude, longitude]);
+
+          // 計算當前網格 ID
+          const gridId = coordinateToGridId(latitude, longitude);
+          if (gridId && gridId !== currentGridIdRef.current) {
+            // 進入新網格
+            currentGridIdRef.current = gridId;
+            // 檢查是否已經探索過，如果沒有則記錄（使用 ref 獲取最新值）
+            if (!exploredGridIdsRef.current.has(gridId)) {
+              recordNewGrid(latitude, longitude);
+            }
+          }
+        },
+        (error) => {
+          console.error('位置追蹤失敗:', error);
+        },
+        {
+          enableHighAccuracy: true, // 使用高精度定位
+          maximumAge: 30000, // 快取位置的最大年齡（30秒）
+          timeout: 10000, // 超時時間（10秒）
+        }
+      );
     } else {
       setUserLocation(defaultCenter);
     }
-  }, []);
+
+    // 清理函數：停止位置監聽
+    return () => {
+      if (watchPositionIdRef.current !== null && typeof window !== 'undefined' && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchPositionIdRef.current);
+        watchPositionIdRef.current = null;
+      }
+    };
+  }, [recordNewGrid]); // 只依賴 recordNewGrid，避免無限循環
 
   // 從 API 獲取 Footprint 數據和已探索方塊 (並行請求)
   useEffect(() => {
@@ -118,34 +223,7 @@ export default function FootprintMap() {
       }
     };
     fetchData();
-  }, []);
-
-  const fetchFootprints = async () => {
-    try {
-      const response = await fetch('/api/footprint/footprints');
-      if (response.ok) {
-        const result = await response.json();
-        const data = result.success ? result.data : result;
-        setFootprints(data.footprints || []);
-      }
-    } catch (error) {
-      console.error('獲取足跡失敗:', error);
-    }
-  };
-
-  const fetchExploredGrids = async () => {
-    try {
-      const response = await fetch('/api/footprint/explored-grids');
-      if (response.ok) {
-        const result = await response.json();
-        const data = result.success ? result.data : result;
-        setExploredGrids(data.grids || []);
-        setExploredGridIds(new Set(data.grids?.map((g: { gridId: string }) => g.gridId) || []));
-      }
-    } catch (error) {
-      console.error('獲取已探索方塊失敗:', error);
-    }
-  };
+  }, [fetchExploredGrids]);
 
   // 解析座標字符串為 [lat, lng]
   const parseCoordinate = (coord: string | null): [number, number] | null => {
