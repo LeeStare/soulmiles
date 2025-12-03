@@ -82,13 +82,29 @@ export function gridIdToBounds(gridId: string): { lat: number; lon: number; latM
 /**
  * 將多個網格 ID 轉換為 GeoJSON 格式
  * @param gridIds 網格 ID 陣列
+ * @param step 網格採樣間隔，用於合併網格（當 step > 1 時，會將多個小網格合併成更大的視覺單元）
  * @returns GeoJSON FeatureCollection
  */
-export function gridIdsToGeoJSON(gridIds: string[]): GeoJSON.FeatureCollection {
+export function gridIdsToGeoJSON(gridIds: string[], step: number = 1): GeoJSON.FeatureCollection {
   const features: GeoJSON.Feature[] = gridIds
     .map((gridId) => {
       const bounds = gridIdToBounds(gridId);
       if (!bounds) return null;
+
+      // 當 step > 1 時，擴展網格邊界以包含多個小網格，形成更大的視覺單元
+      // 這樣可以避免在大的視野下網格太小看不清楚
+      let latMax = bounds.latMax;
+      let lonMax = bounds.lonMax;
+      
+      if (step > 1) {
+        // 將網格邊界擴展到包含 step 個網格的範圍
+        latMax = bounds.lat + (step * GRID_SIZE_LAT);
+        lonMax = bounds.lon + (step * GRID_SIZE_LON);
+        
+        // 確保不超過台灣邊界
+        latMax = Math.min(latMax, TAIWAN_BOUNDS.maxLat);
+        lonMax = Math.min(lonMax, TAIWAN_BOUNDS.maxLon);
+      }
 
       return {
         type: 'Feature',
@@ -98,9 +114,9 @@ export function gridIdsToGeoJSON(gridIds: string[]): GeoJSON.FeatureCollection {
           coordinates: [
             [
               [bounds.lon, bounds.lat],         // 左下角 (西南)
-              [bounds.lonMax, bounds.lat],      // 右下角 (東南)
-              [bounds.lonMax, bounds.latMax],    // 右上角 (東北)
-              [bounds.lon, bounds.latMax],      // 左上角 (西北)
+              [lonMax, bounds.lat],            // 右下角 (東南)
+              [lonMax, latMax],                 // 右上角 (東北)
+              [bounds.lon, latMax],             // 左上角 (西北)
               [bounds.lon, bounds.lat],         // 回到起點（閉合多邊形）
             ],
           ],
@@ -151,13 +167,14 @@ export function getAllTaiwanGridIds(): string[] {
  * 簡化邏輯，確保正確覆蓋台灣區域內的 1km x 1km 網格
  * @param bounds 地圖邊界 { north, south, east, west }
  * @param zoomLevel 可選的地圖縮放級別，用於優化網格密度
- * @returns 可見區域內的網格 ID 陣列
+ * @returns 包含網格 ID 陣列和 step 值的物件
  */
 export function getVisibleGridIds(
   bounds: { north: number; south: number; east: number; west: number },
   zoomLevel?: number
-): string[] {
+): { gridIds: string[]; step: number } {
   const gridIds: string[] = [];
+  let step = 1;
   
   // 計算地圖可見區域與台灣範圍的交集
   const visibleMinLat = Math.max(bounds.south, TAIWAN_BOUNDS.minLat);
@@ -165,15 +182,14 @@ export function getVisibleGridIds(
   const visibleMinLon = Math.max(bounds.west, TAIWAN_BOUNDS.minLon);
   const visibleMaxLon = Math.min(bounds.east, TAIWAN_BOUNDS.maxLon);
 
-  // 如果沒有交集，返回空陣列
+  // 如果沒有交集，返回空陣列和預設 step
   if (visibleMinLat >= visibleMaxLat || visibleMinLon >= visibleMaxLon) {
-    return gridIds;
+    return { gridIds: [], step: 1 };
   }
 
   // 根據縮放級別決定網格採樣間隔（效能優化，避免小範圍縮放時疊圖嚴重）
   // 縮放級別越低（視野越大），step 越大，減少網格密度
   // 1km 縮放對應約 zoom 10-11，500m 對應約 zoom 11-12，50m 對應約 zoom 14-15
-  let step = 1;
   if (zoomLevel !== undefined) {
     if (zoomLevel < 7) {
       step = 12; // 縮放級別極低時（視野很大），每 12 個網格取一個（大幅減少疊圖）
@@ -227,6 +243,7 @@ export function getVisibleGridIds(
 
   // 生成網格 ID
   // 直接使用索引計算網格座標，確保網格之間沒有間隙
+  // 當 step > 1 時，我們會生成更大的網格單元（合併多個小網格），避免方塊太小
   for (let i = startLatIndex; i <= endLatIndex; i += step) {
     for (let j = startLonIndex; j <= endLonIndex; j += step) {
       // 直接計算網格左下角的座標，與 coordinateToGridId 的計算方式一致
@@ -250,7 +267,7 @@ export function getVisibleGridIds(
       }
     }
   }
-
-  return gridIds;
+  
+  return { gridIds, step };
 }
 

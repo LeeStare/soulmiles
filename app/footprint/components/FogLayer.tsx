@@ -50,21 +50,23 @@ export default function FogLayer({ exploredGridIds }: FogLayerProps) {
     };
   }, [map]);
 
-  const visibleGridIds = useMemo(() => {
-    if (!mapBounds) return [];
+  const visibleGridData = useMemo(() => {
+    if (!mapBounds) return { gridIds: [], step: 1 };
     // 傳入縮放級別以優化網格密度
     return getVisibleGridIds(mapBounds, mapZoom || undefined);
   }, [mapBounds, mapZoom]);
 
   const unexploredGridIds = useMemo(() => {
-    if (visibleGridIds.length === 0) return [];
-    return visibleGridIds.filter((gridId) => !exploredGridIds.has(gridId));
-  }, [visibleGridIds, exploredGridIds]);
+    if (!visibleGridData || !visibleGridData.gridIds || visibleGridData.gridIds.length === 0) return [];
+    return visibleGridData.gridIds.filter((gridId) => !exploredGridIds.has(gridId));
+  }, [visibleGridData, exploredGridIds]);
 
   const fogGeoJSON = useMemo(() => {
     if (unexploredGridIds.length === 0) return null;
-    return gridIdsToGeoJSON(unexploredGridIds);
-  }, [unexploredGridIds]);
+    // 傳入 step 值，當 step > 1 時會合併網格成更大的視覺單元
+    const step = visibleGridData?.step || 1;
+    return gridIdsToGeoJSON(unexploredGridIds, step);
+  }, [unexploredGridIds, visibleGridData?.step]);
 
   const starPositions = useMemo(() => {
     if (!mapBounds || unexploredGridIds.length === 0) return [];
