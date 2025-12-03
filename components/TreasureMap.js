@@ -285,26 +285,55 @@ export default function TreasureMap() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 text-[0.65rem]">
-              {routePlan.map((stop, index) => {
-                const isActive = index === currentStopIndex;
-                const isDone = index < currentStopIndex;
-                return (
-                  <div
-                    key={stop.title}
-                    className={`rounded-2xl border px-3 py-3 text-center ${
-                      isActive
-                        ? 'border-[#fbbf24] bg-[#fbbf24]/10 text-[#fbbf24]'
-                        : isDone
-                        ? 'border-[#78e08f]/40 bg-[#12301d] text-[#78e08f]'
-                        : 'border-white/10 bg-white/5 text-[#f7e7c7]/60'
-                    }`}
-                  >
-                    <p className="text-[0.65rem] font-semibold">{stop.title}</p>
-                    <p className="mt-1 text-[0.55rem]">{stop.log}</p>
-                  </div>
-                );
-              })}
+            <div className="space-y-2">
+              {/* 第一行：前三個卡片 */}
+              <div className="grid grid-cols-3 gap-2 text-[0.65rem]">
+                {routePlan.slice(0, 3).map((stop, index) => {
+                  const isActive = index === currentStopIndex;
+                  const isDone = index < currentStopIndex;
+                  return (
+                    <div
+                      key={`row1-${stop.title}`}
+                      className={`rounded-2xl border px-3 py-3 text-center ${
+                        isActive
+                          ? 'border-[#fbbf24] bg-[#fbbf24]/10 text-[#fbbf24]'
+                          : isDone
+                          ? 'border-[#78e08f]/40 bg-[#12301d] text-[#78e08f]'
+                          : 'border-white/10 bg-white/5 text-[#f7e7c7]/60'
+                      }`}
+                    >
+                      <p className="text-[0.65rem] font-semibold">{stop.title}</p>
+                      <p className="mt-1 text-[0.55rem]">{stop.log}</p>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {/* 第二行：剩下的卡片，擴展填滿整行 */}
+              {routePlan.length > 3 && (
+                <div className="grid grid-cols-2 gap-2 text-[0.65rem]">
+                  {routePlan.slice(3).map((stop, index) => {
+                    const actualIndex = index + 3;
+                    const isActive = actualIndex === currentStopIndex;
+                    const isDone = actualIndex < currentStopIndex;
+                    return (
+                      <div
+                        key={`row2-${stop.title}`}
+                        className={`rounded-2xl border px-3 py-3 text-center ${
+                          isActive
+                            ? 'border-[#fbbf24] bg-[#fbbf24]/10 text-[#fbbf24]'
+                            : isDone
+                            ? 'border-[#78e08f]/40 bg-[#12301d] text-[#78e08f]'
+                            : 'border-white/10 bg-white/5 text-[#f7e7c7]/60'
+                        }`}
+                      >
+                        <p className="text-[0.65rem] font-semibold">{stop.title}</p>
+                        <p className="mt-1 text-[0.55rem]">{stop.log}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="flex gap-3">
