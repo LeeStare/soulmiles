@@ -75,8 +75,9 @@ export default function TreasureMap() {
   const [currentStopIndex, setCurrentStopIndex] = useState(0);
   const [isNearDestination, setIsNearDestination] = useState(false);
   const [showCompletion, setShowCompletion] = useState(false);
-  const [itineraries, setItineraries] = useState(defaultItineraries);
+  const [itineraries, setItineraries] = useState(null); // 改為 null，初始不顯示預設資料
   const [loadingAttractions, setLoadingAttractions] = useState({});
+  const [isLoading, setIsLoading] = useState(true); // 新增載入狀態
 
   const regionKey = useMemo(() => {
     if (location.includes('北')) return 'north';
@@ -145,6 +146,7 @@ export default function TreasureMap() {
   // 當行程變化時，載入真實景點資料
   useEffect(() => {
     const loadAttractions = async () => {
+      setIsLoading(true); // 開始載入
       const defaultRoute = defaultItineraries[regionKey] || defaultItineraries.north;
       const updatedRoute = await Promise.all(
         defaultRoute.map(async (stop) => {
@@ -159,18 +161,25 @@ export default function TreasureMap() {
         })
       );
 
-      setItineraries(prev => ({
-        ...prev,
-        [regionKey]: updatedRoute,
-      }));
+      setItineraries(prev => {
+        const newItineraries = prev || {};
+        return {
+          ...newItineraries,
+          [regionKey]: updatedRoute,
+        };
+      });
+      setIsLoading(false); // 載入完成
     };
 
     loadAttractions();
   }, [regionKey]);
 
-  const routePlan = itineraries[regionKey] || defaultItineraries[regionKey] || defaultItineraries.north;
-  const currentStop = routePlan[currentStopIndex] || routePlan[0];
-  const isMissionComplete = currentStopIndex >= routePlan.length - 1;
+  // 如果還在載入或沒有資料，使用預設資料但不顯示
+  const routePlan = isLoading || !itineraries 
+    ? null 
+    : (itineraries[regionKey] || defaultItineraries[regionKey] || defaultItineraries.north);
+  const currentStop = routePlan ? (routePlan[currentStopIndex] || routePlan[0]) : null;
+  const isMissionComplete = routePlan ? (currentStopIndex >= routePlan.length - 1) : false;
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -201,6 +210,23 @@ export default function TreasureMap() {
     setShowCompletion(false);
     router.push('/');
   };
+
+  // 載入中顯示 loading 畫面
+  if (isLoading || !routePlan) {
+    return (
+      <div className="fixed inset-0 h-screen w-screen overflow-hidden arcane-bg text-[#f1e3c3]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_-10%,rgba(149,121,80,0.2),transparent_60%)]" />
+        <div className="relative z-10 flex h-full flex-col items-center justify-center gap-4 px-4 py-4 sm:py-6">
+          <div className="flex flex-col items-center justify-center gap-4">
+            <div className="relative">
+              <div className="h-16 w-16 animate-spin rounded-full border-4 border-[#fbbf24]/30 border-t-[#fbbf24]"></div>
+            </div>
+            <p className="text-sm text-[#f7e7c7]/70">正在載入探險路線...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 h-screen w-screen overflow-hidden arcane-bg text-[#f1e3c3]">
